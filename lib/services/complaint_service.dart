@@ -165,12 +165,23 @@ class ComplaintService extends ChangeNotifier {
   }
 
   Future<String> _uploadImage(File imageFile, String id) async {
-    final ref = _storage.ref('complaints/$id/before.jpg');
+    final uid = _auth.currentUser?.uid ?? 'anonymous';
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage.ref('complaints/$uid/$id-$ts-before.jpg');
     final task = await ref.putFile(
       imageFile,
       SettableMetadata(contentType: 'image/jpeg'),
     );
-    return await task.ref.getDownloadURL();
+
+    // Firebase Storage may briefly return object-not-found right after upload.
+    // Retry once to avoid surfacing a confusing message to users.
+    try {
+      return await task.ref.getDownloadURL();
+    } on FirebaseException catch (e) {
+      if (e.code != 'object-not-found') rethrow;
+      await Future.delayed(const Duration(milliseconds: 500));
+      return await task.ref.getDownloadURL();
+    }
   }
 
   Future<Map<String, String>> _analyzeWaste(File imageFile) async {
@@ -285,11 +296,17 @@ class ComplaintService extends ChangeNotifier {
             .toList());
   }
 
-  Stream<List<ComplaintModel>> get publicFeed {
-    return _db
+  Stream<List<ComplaintModel>> publicFeed({String? ward}) {
+    Query<Map<String, dynamic>> query = _db
         .collection('complaints')
         .where('status', isEqualTo: 'resolved')
-        .orderBy('resolvedAt', descending: true)
+        .orderBy('resolvedAt', descending: true);
+
+    if (ward != null && ward.isNotEmpty) {
+      query = query.where('ward', isEqualTo: ward);
+    }
+
+    return query
         .limit(20)
         .snapshots()
         .map((s) => s.docs
