@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
@@ -9,6 +10,7 @@ import 'services/complaint_service.dart';
 import 'services/user_service.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'screens/collector/collector_home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -128,9 +130,22 @@ class AuthWrapper extends StatelessWidget {
           return const LoginScreen();
         }
 
-        // User already logged in → go to home directly
+        // User already logged in → route by role
         if (snapshot.hasData && snapshot.data != null) {
-          return const HomeScreen();
+          final uid = snapshot.data!.uid;
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+            builder: (context, userSnap) {
+              if (userSnap.connectionState == ConnectionState.waiting) {
+                return const _LoadingScreen();
+              }
+              final role = userSnap.data?.data()?['role'] as String? ?? 'citizen';
+              if (role == 'collector') {
+                return const CollectorHomeScreen();
+              }
+              return const HomeScreen();
+            },
+          );
         }
 
         // Not logged in → show login

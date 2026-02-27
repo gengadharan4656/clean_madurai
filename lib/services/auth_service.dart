@@ -16,7 +16,6 @@ class AuthService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // ── PHONE OTP ──────────────────────────────────────────
   Future<void> sendOTP({
     required String phoneNumber,
     required VoidCallback onCodeSent,
@@ -64,7 +63,7 @@ class AuthService extends ChangeNotifier {
         smsCode: otp,
       );
       await _auth.signInWithCredential(credential);
-      await _createUserIfNeeded(name: name, ward: ward);
+      await _createUserIfNeeded(name: name, ward: ward, role: 'citizen');
       _setLoading(false);
       notifyListeners();
       return true;
@@ -76,16 +75,31 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ── EMAIL ──────────────────────────────────────────────
   Future<bool> signInWithEmail({
     required String email,
     required String password,
+    String? expectedRole,
   }) async {
     _setLoading(true);
     _error = null;
     try {
-      await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
+      final cred = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final doc = await _db.collection('users').doc(cred.user!.uid).get();
+      final actualRole = (doc.data()?['role'] as String?) ?? 'citizen';
+      if (expectedRole != null && expectedRole != actualRole) {
+        await _auth.signOut();
+        _error = expectedRole == 'collector'
+            ? 'This account is not a garbage collector account.'
+            : 'This account is not a citizen account.';
+        _setLoading(false);
+        notifyListeners();
+        return false;
+      }
+
       await _createUserIfNeeded();
       _setLoading(false);
       notifyListeners();
@@ -103,13 +117,22 @@ class AuthService extends ChangeNotifier {
     required String password,
     required String name,
     required String ward,
+    String role = 'citizen',
+    Map<String, dynamic>? extraDetails,
   }) async {
     _setLoading(true);
     _error = null;
     try {
       await _auth.createUserWithEmailAndPassword(
-          email: email, password: password);
-      await _createUserIfNeeded(name: name, ward: ward);
+        email: email,
+        password: password,
+      );
+      await _createUserIfNeeded(
+        name: name,
+        ward: ward,
+        role: role,
+        extraDetails: extraDetails,
+      );
       _setLoading(false);
       notifyListeners();
       return true;
@@ -121,14 +144,17 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ── SIGN OUT ───────────────────────────────────────────
   Future<void> signOut() async {
     await _auth.signOut();
     notifyListeners();
   }
 
-  // ── HELPERS ────────────────────────────────────────────
-  Future<void> _createUserIfNeeded({String? name, String? ward}) async {
+  Future<void> _createUserIfNeeded({
+    String? name,
+    String? ward,
+    String role = 'citizen',
+    Map<String, dynamic>? extraDetails,
+  }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
     final docRef = _db.collection('users').doc(uid);
@@ -136,11 +162,12 @@ class AuthService extends ChangeNotifier {
     if (!doc.exists) {
       await docRef.set({
         'id': uid,
-        'name': name ?? 'Citizen',
+        'name': name ?? (role == 'collector' ? 'Garbage Collector' : 'Citizen'),
         'phone': _auth.currentUser?.phoneNumber ?? '',
         'email': _auth.currentUser?.email ?? '',
         'ward': ward ?? 'Ward 1',
-        'role': 'citizen',
+        'role': role,
+        'collectorDetails': extraDetails ?? {},
         'cleanlinessScore': 0,
         'totalComplaints': 0,
         'resolvedComplaints': 0,
