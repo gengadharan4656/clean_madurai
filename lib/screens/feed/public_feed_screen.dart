@@ -1,72 +1,64 @@
-// lib/screens/feed/public_feed_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../main.dart';
 import '../../services/complaint_service.dart';
-import '../../models/complaint_model.dart';
 
 class PublicFeedScreen extends StatelessWidget {
   const PublicFeedScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final service = context.read<ComplaintService>();
-
+    final svc = context.read<ComplaintService>();
     return Scaffold(
-      appBar: AppBar(title: const Text('✨ Resolved Issues')),
+      appBar: AppBar(title: const Text('✨ Resolved Issues'),
+          automaticallyImplyLeading: false),
       body: StreamBuilder<List<ComplaintModel>>(
-        stream: service.publicFeed,
+        stream: svc.publicFeed,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          final complaints = snap.data ?? [];
-
-          if (complaints.isEmpty) {
-            return const Center(child: Text('No resolved complaints yet'));
+          final list = snap.data ?? [];
+          if (list.isEmpty) {
+            return const Center(
+                child: Text('No resolved complaints yet.',
+                    style: TextStyle(color: Colors.grey)));
           }
-
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: complaints.length,
+            itemCount: list.length,
             itemBuilder: (_, i) {
-              final c = complaints[i];
+              final c = list[i];
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (c.imageAfterUrl != null)
+                    if (c.imageBeforeUrl.isNotEmpty)
                       ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                        child: Image.network(c.imageAfterUrl!, height: 160, width: double.infinity, fit: BoxFit.cover),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(14)),
+                        child: Image.network(c.imageBeforeUrl,
+                            height: 140,
+                            width: double.infinity,
+                            fit: BoxFit.cover),
                       ),
                     Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              const Text('✅', style: TextStyle(fontSize: 20)),
-                              const SizedBox(width: 8),
-                              Text(c.category, style: const TextStyle(fontWeight: FontWeight.w700)),
-                              const Spacer(),
-                              Text(c.ward, style: const TextStyle(color: AppTheme.textMed, fontSize: 13)),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            c.resolvedAt != null
-                                ? 'Cleaned on ${c.resolvedAt!.day}/${c.resolvedAt!.month}/${c.resolvedAt!.year}'
-                                : 'Recently resolved',
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textMed),
-                          ),
+                          const Text('✅',
+                              style: TextStyle(fontSize: 18)),
+                          const SizedBox(width: 8),
+                          Text(c.category,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700)),
+                          const Spacer(),
+                          Text(c.ward,
+                              style: const TextStyle(
+                                  color: Colors.grey, fontSize: 12)),
                         ],
                       ),
                     ),

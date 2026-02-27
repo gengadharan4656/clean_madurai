@@ -1,14 +1,11 @@
-// lib/screens/report/report_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../main.dart';
-import '../../services/auth_service.dart';
 import '../../services/complaint_service.dart';
 import '../../services/user_service.dart';
-import '../report/complaint_success_screen.dart';
+import 'success_screen.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -18,143 +15,149 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  File? _imageFile;
+  File? _image;
   String? _category;
-  final _descController = TextEditingController();
   Position? _position;
-  bool _fetchingLocation = false;
+  bool _gettingLoc = false;
+  final _descCtrl = TextEditingController();
 
-  final List<Map<String, String>> _categories = [
-    {'label': 'Garbage Overflow', 'value': 'Garbage overflow', 'emoji': '🗑️'},
-    {'label': 'Open Dumping', 'value': 'Open dumping', 'emoji': '♻️'},
-    {'label': 'Sewer Blockage', 'value': 'Sewer blockage', 'emoji': '🚰'},
-    {'label': 'Public Toilet Issue', 'value': 'Public toilet issue', 'emoji': '🚽'},
-    {'label': 'Littering', 'value': 'Littering', 'emoji': '🍃'},
-    {'label': 'Other', 'value': 'Other', 'emoji': '📋'},
+  final _categories = [
+    {'v': 'Garbage Overflow', 'e': '🗑️'},
+    {'v': 'Open Dumping', 'e': '♻️'},
+    {'v': 'Sewer Blockage', 'e': '🚰'},
+    {'v': 'Public Toilet Issue', 'e': '🚽'},
+    {'v': 'Littering', 'e': '🍃'},
+    {'v': 'Other', 'e': '📋'},
   ];
 
   @override
   void initState() {
     super.initState();
-    _fetchLocation();
+    _getLocation();
   }
 
-  Future<void> _fetchLocation() async {
-    setState(() => _fetchingLocation = true);
+  Future<void> _getLocation() async {
+    setState(() => _gettingLoc = true);
     try {
-      final perm = await Geolocator.checkPermission();
+      var perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
-        await Geolocator.requestPermission();
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.deniedForever) {
+        setState(() => _gettingLoc = false);
+        return;
       }
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 15),
+        ),
       );
       setState(() {
         _position = pos;
-        _fetchingLocation = false;
+        _gettingLoc = false;
       });
     } catch (e) {
-      setState(() => _fetchingLocation = false);
+      setState(() => _gettingLoc = false);
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, imageQuality: 75, maxWidth: 1080);
-    if (picked != null) setState(() => _imageFile = File(picked.path));
+  Future<void> _pickImage(ImageSource src) async {
+    final picked = await ImagePicker()
+        .pickImage(source: src, imageQuality: 80, maxWidth: 1080);
+    if (picked != null) setState(() => _image = File(picked.path));
   }
 
-  Future<void> _submitReport() async {
-    if (_imageFile == null) {
-      _showSnack('Please add a photo');
+  Future<void> _submit() async {
+    if (_image == null) {
+      _snack('Please add a photo');
       return;
     }
     if (_category == null) {
-      _showSnack('Please select a category');
+      _snack('Please select a category');
       return;
     }
     if (_position == null) {
-      _showSnack('Location not available. Please enable GPS.');
+      _snack('Location not available. Tap the refresh icon.');
       return;
     }
 
-    final complaintService = context.read<ComplaintService>();
-    final userService = context.read<UserService>();
-    final userSnap = await userService.userStream.first;
-    final ward = userSnap?.ward ?? 'Ward 1';
+    final svc = context.read<ComplaintService>();
+    final userSvc = context.read<UserService>();
+    final user = await userSvc.userStream.first;
 
-    final complaintId = await complaintService.submitComplaint(
-      imageFile: _imageFile!,
+    final id = await svc.submitComplaint(
+      imageFile: _image!,
       category: _category!,
       lat: _position!.latitude,
       lng: _position!.longitude,
-      locationName: 'Madurai (${_position!.latitude.toStringAsFixed(4)}, ${_position!.longitude.toStringAsFixed(4)})',
-      description: _descController.text,
-      ward: ward,
+      ward: user?.ward ?? 'Ward 1',
+      description: _descCtrl.text,
     );
 
     if (!mounted) return;
-
-    if (complaintId != null) {
-      // Award points
-      await userService.addPoints(10);
-
+    if (id != null) {
+      await userSvc.addPoints(10);
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => ComplaintSuccessScreen(complaintId: complaintId),
-        ),
+        MaterialPageRoute(builder: (_) => SuccessScreen(id: id)),
       );
     } else {
-      _showSnack('Submission failed. Please try again.');
+      _snack('Submission failed. Check your internet and try again.');
     }
   }
 
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
+  void _snack(String msg) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(msg)));
 
   @override
   Widget build(BuildContext context) {
-    final complaintService = context.watch<ComplaintService>();
+    final svc = context.watch<ComplaintService>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Report Cleanliness Issue')),
+      appBar: AppBar(
+        title: const Text('Report Issue'),
+        automaticallyImplyLeading: false,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Photo Section
-            const Text('📸 Add Photo (Required)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            // Photo
+            const Text('📸 Photo (Required)',
+                style:
+                    TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: () => _showImagePicker(),
+              onTap: _showPicker,
               child: Container(
-                height: 200,
+                height: 180,
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: _imageFile != null ? AppTheme.primary : Colors.grey.shade300,
-                    width: _imageFile != null ? 2 : 1,
+                    color: _image != null
+                        ? const Color(0xFF1B5E20)
+                        : Colors.grey.shade300,
+                    width: _image != null ? 2 : 1,
                   ),
                 ),
-                child: _imageFile != null
+                child: _image != null
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.file(_imageFile!, fit: BoxFit.cover),
-                      )
+                        borderRadius: BorderRadius.circular(13),
+                        child: Image.file(_image!, fit: BoxFit.cover))
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.camera_alt_outlined, size: 48, color: Colors.grey.shade400),
+                          Icon(Icons.camera_alt_outlined,
+                              size: 44,
+                              color: Colors.grey.shade400),
                           const SizedBox(height: 8),
-                          Text('Tap to add photo', style: TextStyle(color: Colors.grey.shade500)),
-                          const SizedBox(height: 4),
-                          Text('Camera or Gallery', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                          Text('Tap to add photo',
+                              style:
+                                  TextStyle(color: Colors.grey.shade500)),
                         ],
                       ),
               ),
@@ -162,39 +165,40 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(height: 20),
 
             // Category
-            const Text('📂 Issue Category', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const Text('📂 Category',
+                style:
+                    TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: _categories.map((cat) {
-                final selected = _category == cat['value'];
+                final sel = _category == cat['v'];
                 return GestureDetector(
-                  onTap: () => setState(() => _category = cat['value']),
+                  onTap: () => setState(() => _category = cat['v']),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: selected ? AppTheme.primary : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      color: sel
+                          ? const Color(0xFF1B5E20)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: selected ? AppTheme.primary : Colors.grey.shade300,
+                        color: sel
+                            ? const Color(0xFF1B5E20)
+                            : Colors.grey.shade300,
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(cat['emoji']!),
-                        const SizedBox(width: 6),
-                        Text(
-                          cat['label']!,
-                          style: TextStyle(
-                            color: selected ? Colors.white : AppTheme.textDark,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
+                    child: Text('${cat['e']} ${cat['v']}',
+                        style: TextStyle(
+                          color: sel ? Colors.white : Colors.black87,
+                          fontWeight: sel
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          fontSize: 13,
+                        )),
                   ),
                 );
               }).toList(),
@@ -202,10 +206,12 @@ class _ReportScreenState extends State<ReportScreen> {
             const SizedBox(height: 20),
 
             // Location
-            const Text('📍 Location', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const Text('📍 Location',
+                style:
+                    TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -214,66 +220,70 @@ class _ReportScreenState extends State<ReportScreen> {
               child: Row(
                 children: [
                   Icon(
-                    _position != null ? Icons.location_on : Icons.location_searching,
-                    color: _position != null ? AppTheme.primary : Colors.grey,
+                    _position != null
+                        ? Icons.location_on
+                        : Icons.location_off,
+                    color: _position != null ? Colors.green : Colors.red,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: _fetchingLocation
-                        ? const Text('Getting location...')
+                    child: _gettingLoc
+                        ? const Text('Getting location...',
+                            style: TextStyle(color: Colors.grey))
                         : Text(
                             _position != null
-                                ? 'GPS: ${_position!.latitude.toStringAsFixed(4)}, ${_position!.longitude.toStringAsFixed(4)}'
-                                : 'Location unavailable',
+                                ? '${_position!.latitude.toStringAsFixed(4)}, ${_position!.longitude.toStringAsFixed(4)}'
+                                : 'Location unavailable - tap refresh',
                             style: TextStyle(
-                              color: _position != null ? AppTheme.textDark : Colors.red,
-                            ),
+                                color: _position != null
+                                    ? Colors.black87
+                                    : Colors.red,
+                                fontSize: 13),
                           ),
                   ),
-                  if (_fetchingLocation)
+                  if (_gettingLoc)
                     const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
                   else
                     IconButton(
-                      icon: const Icon(Icons.refresh, size: 20),
-                      onPressed: _fetchLocation,
-                    ),
+                        icon: const Icon(Icons.refresh, size: 20),
+                        onPressed: _getLocation),
                 ],
               ),
             ),
             const SizedBox(height: 20),
 
             // Description
-            const Text('📝 Description (Optional)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const Text('📝 Description (Optional)',
+                style:
+                    TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             const SizedBox(height: 8),
-            TextFormField(
-              controller: _descController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Describe the issue...',
-              ),
+            TextField(
+              controller: _descCtrl,
+              maxLines: 2,
+              decoration:
+                  const InputDecoration(hintText: 'Describe the issue...'),
             ),
             const SizedBox(height: 12),
 
-            // AI notice
+            // AI note
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Text('🤖', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 10),
-                  const Expanded(
+                  Text('🤖', style: TextStyle(fontSize: 18)),
+                  SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      'AI will automatically analyze your photo and suggest recycling guidance',
-                      style: TextStyle(fontSize: 13, color: AppTheme.textMed),
+                      'AI will analyze your photo for waste type & recycling advice',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.black54),
                     ),
                   ),
                 ],
@@ -281,80 +291,69 @@ class _ReportScreenState extends State<ReportScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Submit Button
+            // Submit
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: complaintService.isSubmitting ? null : _submitReport,
+                onPressed: svc.isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.secondary,
-                ),
-                child: complaintService.isSubmitting
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          ),
-                          SizedBox(width: 10),
-                          Text('Submitting & Analyzing...'),
-                        ],
-                      )
-                    : const Row(
+                    backgroundColor: const Color(0xFFFF6D00),
+                    foregroundColor: Colors.white),
+                child: svc.isSubmitting
+                    ? const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.send),
-                          SizedBox(width: 8),
-                          Text('Submit Report (+10 pts)'),
+                          SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2)),
+                          SizedBox(width: 10),
+                          Text('Submitting...'),
                         ],
-                      ),
+                      )
+                    : const Text('Submit Report (+10 pts)',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700)),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  void _showImagePicker() {
+  void _showPicker() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Add Photo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const Text('Add Photo',
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _PickerOption(
-                  icon: Icons.camera_alt,
-                  label: 'Camera',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage(ImageSource.camera);
-                  },
-                ),
-                _PickerOption(
-                  icon: Icons.photo_library,
-                  label: 'Gallery',
-                  onTap: () {
-                    Navigator.pop(context);
-                    _pickImage(ImageSource.gallery);
-                  },
-                ),
+                _PickOpt(Icons.camera_alt, 'Camera', () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                }),
+                _PickOpt(Icons.photo_library, 'Gallery', () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                }),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -362,12 +361,11 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 }
 
-class _PickerOption extends StatelessWidget {
+class _PickOpt extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-
-  const _PickerOption({required this.icon, required this.label, required this.onTap});
+  const _PickOpt(this.icon, this.label, this.onTap);
 
   @override
   Widget build(BuildContext context) {
@@ -376,13 +374,13 @@ class _PickerOption extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 70,
+            height: 70,
             decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(18),
+              color: const Color(0xFF1B5E20).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, size: 32, color: AppTheme.primary),
+            child: Icon(icon, size: 32, color: const Color(0xFF1B5E20)),
           ),
           const SizedBox(height: 8),
           Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),

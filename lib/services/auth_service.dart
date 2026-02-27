@@ -1,4 +1,3 @@
-// lib/services/auth_service.dart
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,9 +16,7 @@ class AuthService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // ─── PHONE OTP LOGIN ─────────────────────────────────────────
-
-  /// Step 1: Send OTP to phone number
+  // ── PHONE OTP ──────────────────────────────────────────
   Future<void> sendOTP({
     required String phoneNumber,
     required VoidCallback onCodeSent,
@@ -28,12 +25,11 @@ class AuthService extends ChangeNotifier {
     _setLoading(true);
     try {
       await _auth.verifyPhoneNumber(
-        phoneNumber: phoneNumber, // e.g. "+919876543210"
+        phoneNumber: phoneNumber,
         timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
-          // Auto-retrieval on Android
           await _auth.signInWithCredential(credential);
-          await _ensureUserDocument();
+          await _createUserIfNeeded();
           notifyListeners();
         },
         verificationFailed: (FirebaseAuthException e) {
@@ -55,7 +51,6 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Step 2: Verify OTP code
   Future<bool> verifyOTP({
     required String otp,
     required String name,
@@ -69,7 +64,7 @@ class AuthService extends ChangeNotifier {
         smsCode: otp,
       );
       await _auth.signInWithCredential(credential);
-      await _ensureUserDocument(name: name, ward: ward);
+      await _createUserIfNeeded(name: name, ward: ward);
       _setLoading(false);
       notifyListeners();
       return true;
@@ -81,16 +76,17 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ─── EMAIL LOGIN ──────────────────────────────────────────────
-
+  // ── EMAIL ──────────────────────────────────────────────
   Future<bool> signInWithEmail({
     required String email,
     required String password,
   }) async {
     _setLoading(true);
+    _error = null;
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
-      await _ensureUserDocument();
+      await _auth.signInWithEmailAndPassword(
+          email: email, password: password);
+      await _createUserIfNeeded();
       _setLoading(false);
       notifyListeners();
       return true;
@@ -109,9 +105,11 @@ class AuthService extends ChangeNotifier {
     required String ward,
   }) async {
     _setLoading(true);
+    _error = null;
     try {
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
-      await _ensureUserDocument(name: name, ward: ward);
+      await _auth.createUserWithEmailAndPassword(
+          email: email, password: password);
+      await _createUserIfNeeded(name: name, ward: ward);
       _setLoading(false);
       notifyListeners();
       return true;
@@ -123,23 +121,18 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ─── SIGN OUT ─────────────────────────────────────────────────
-
+  // ── SIGN OUT ───────────────────────────────────────────
   Future<void> signOut() async {
     await _auth.signOut();
     notifyListeners();
   }
 
-  // ─── HELPERS ─────────────────────────────────────────────────
-
-  /// Creates Firestore user doc if it doesn't exist (preserves existing data)
-  Future<void> _ensureUserDocument({String? name, String? ward}) async {
+  // ── HELPERS ────────────────────────────────────────────
+  Future<void> _createUserIfNeeded({String? name, String? ward}) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
-
     final docRef = _db.collection('users').doc(uid);
     final doc = await docRef.get();
-
     if (!doc.exists) {
       await docRef.set({
         'id': uid,
@@ -159,11 +152,18 @@ class AuthService extends ChangeNotifier {
 
   String _friendlyError(String code) {
     switch (code) {
-      case 'user-not-found': return 'No account found with this email.';
-      case 'wrong-password': return 'Incorrect password.';
-      case 'email-already-in-use': return 'Email already registered.';
-      case 'weak-password': return 'Password must be at least 6 characters.';
-      default: return 'Something went wrong. Please try again.';
+      case 'user-not-found':
+        return 'No account found with this email.';
+      case 'wrong-password':
+        return 'Incorrect password.';
+      case 'email-already-in-use':
+        return 'Email already registered.';
+      case 'weak-password':
+        return 'Password must be at least 6 characters.';
+      case 'invalid-email':
+        return 'Invalid email address.';
+      default:
+        return 'Login failed. Please try again.';
     }
   }
 

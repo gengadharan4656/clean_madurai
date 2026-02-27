@@ -1,8 +1,5 @@
-// lib/screens/auth/otp_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:pinput/pinput.dart';
-import '../../main.dart';
 import '../../services/auth_service.dart';
 
 class OTPScreen extends StatefulWidget {
@@ -14,12 +11,23 @@ class OTPScreen extends StatefulWidget {
 }
 
 class _OTPScreenState extends State<OTPScreen> {
-  final _otpController = TextEditingController();
+  final List<TextEditingController> _controllers =
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   final _nameCtrl = TextEditingController();
   String _selectedWard = 'Ward 1';
   bool _showProfile = false;
 
-  final List<String> _wards = List.generate(40, (i) => 'Ward ${i + 1}');
+  String get _otp =>
+      _controllers.map((c) => c.text).join();
+
+  @override
+  void dispose() {
+    for (var c in _controllers) c.dispose();
+    for (var f in _focusNodes) f.dispose();
+    _nameCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,69 +36,68 @@ class _OTPScreenState extends State<OTPScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Verify OTP'),
-        backgroundColor: AppTheme.primary,
+        backgroundColor: const Color(0xFF1B5E20),
+        foregroundColor: Colors.white,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 20),
-            Text(
-              'OTP sent to\n${widget.phoneNumber}',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: AppTheme.textMed),
-            ),
+            Text('OTP sent to\n${widget.phoneNumber}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16, color: Colors.grey)),
             const SizedBox(height: 32),
 
-            Pinput(
-              controller: _otpController,
-              length: 6,
-              defaultPinTheme: PinTheme(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.white,
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
-                ),
-              ),
-              focusedPinTheme: PinTheme(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppTheme.primary, width: 2),
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.white,
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primary,
-                ),
-              ),
+            // 6-box OTP input
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(6, (i) {
+                return SizedBox(
+                  width: 44,
+                  height: 52,
+                  child: TextField(
+                    controller: _controllers[i],
+                    focusNode: _focusNodes[i],
+                    textAlign: TextAlign.center,
+                    keyboardType: TextInputType.number,
+                    maxLength: 1,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      if (val.isNotEmpty && i < 5) {
+                        _focusNodes[i + 1].requestFocus();
+                      }
+                    },
+                  ),
+                );
+              }),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
 
             if (_showProfile) ...[
-              TextFormField(
+              TextField(
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Your Name',
-                  hintText: 'Enter your full name',
+                  labelText: 'Your Full Name',
+                  hintText: 'Enter your name',
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 value: _selectedWard,
                 decoration: const InputDecoration(labelText: 'Your Ward'),
-                items: _wards.map((w) => DropdownMenuItem(value: w, child: Text(w))).toList(),
+                items: List.generate(40, (i) => 'Ward ${i + 1}')
+                    .map((w) =>
+                        DropdownMenuItem(value: w, child: Text(w)))
+                    .toList(),
                 onChanged: (v) => setState(() => _selectedWard = v!),
               ),
               const SizedBox(height: 24),
@@ -98,33 +105,52 @@ class _OTPScreenState extends State<OTPScreen> {
 
             SizedBox(
               width: double.infinity,
+              height: 50,
               child: ElevatedButton(
-                onPressed: auth.isLoading ? null : () async {
-                  if (_otpController.text.length < 6) return;
+                onPressed: auth.isLoading
+                    ? null
+                    : () async {
+                        if (_otp.length < 6) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Enter complete 6-digit OTP')),
+                          );
+                          return;
+                        }
 
-                  if (!_showProfile) {
-                    setState(() => _showProfile = true);
-                    return;
-                  }
+                        if (!_showProfile) {
+                          setState(() => _showProfile = true);
+                          return;
+                        }
 
-                  final success = await auth.verifyOTP(
-                    otp: _otpController.text,
-                    name: _nameCtrl.text.isEmpty ? 'Citizen' : _nameCtrl.text,
-                    ward: _selectedWard,
-                  );
+                        final ok = await auth.verifyOTP(
+                          otp: _otp,
+                          name: _nameCtrl.text.isEmpty
+                              ? 'Citizen'
+                              : _nameCtrl.text,
+                          ward: _selectedWard,
+                        );
 
-                  if (!success && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Invalid OTP. Please try again.'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
+                        if (!ok && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Invalid OTP. Try again.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1B5E20),
+                    foregroundColor: Colors.white),
                 child: auth.isLoading
-                    ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                    : Text(_showProfile ? 'Verify & Create Account' : 'Continue'),
+                    ? const CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2)
+                    : Text(
+                        _showProfile ? 'Verify & Continue' : 'Next',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
               ),
             ),
           ],
