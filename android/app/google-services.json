@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "830736415859",
+    "project_id": "clean-madurai",
+    "storage_bucket": "clean-madurai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830736415859:android:77d159a1bffd9f199f3e06",
+        "android_client_info": {
+          "package_name": "com.cleanmadurai.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "830736415859-qv5chshierp95im3qr5381ah7bk9obmc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzVr3H4zpDnnLuFiZuE08BGF-21ex-cio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830736415859-qv5chshierp95im3qr5381ah7bk9obmc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830736415859:android:3da30686e6b3a4379f3e06",
+        "android_client_info": {
+          "package_name": "com.example.clean_madurai_code"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "830736415859-qv5chshierp95im3qr5381ah7bk9obmc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzVr3H4zpDnnLuFiZuE08BGF-21ex-cio"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830736415859-qv5chshierp95im3qr5381ah7bk9obmc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
