@@ -313,4 +313,68 @@ class ComplaintService extends ChangeNotifier {
             .map((d) => ComplaintModel.fromMap(d.id, d.data()))
             .toList());
   }
+
+  Stream<List<ComplaintModel>> collectorWardQueue(String ward) {
+    return _db
+        .collection('complaints')
+        .where('ward', isEqualTo: ward)
+        .where('status', whereIn: ['submitted', 'assigned', 'in_progress'])
+        .orderBy('createdAt', descending: true)
+        .limit(30)
+        .snapshots()
+        .map((s) => s.docs
+            .map((d) => ComplaintModel.fromMap(d.id, d.data()))
+            .toList());
+  }
+
+  Future<bool> collectorUpdateComplaint({
+    required String complaintId,
+    required String status,
+    File? afterImage,
+  }) async {
+    try {
+      final update = <String, dynamic>{'status': status};
+      if (status == 'resolved') {
+        update['resolvedAt'] = FieldValue.serverTimestamp();
+      }
+
+      if (afterImage != null) {
+        final url = await _uploadAfterImage(afterImage, complaintId);
+        update['imageAfterUrl'] = url;
+      }
+
+      await _db.collection('complaints').doc(complaintId).set(
+        update,
+        SetOptions(merge: true),
+      );
+
+      if (status == 'resolved') {
+        final collectorId = _auth.currentUser?.uid;
+        if (collectorId != null && collectorId.isNotEmpty) {
+          await _db.collection('users').doc(collectorId).set({
+            'cleanlinessScore': FieldValue.increment(20),
+            'resolvedComplaints': FieldValue.increment(1),
+          }, SetOptions(merge: true));
+        }
+      }
+
+      return true;
+    } on FirebaseException catch (e) {
+      _lastError = e.message ?? 'Failed to update complaint.';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<String> _uploadAfterImage(File imageFile, String id) async {
+    final uid = _auth.currentUser?.uid ?? 'anonymous';
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final ref = _storage.ref('complaints/$uid/$id-$ts-after.jpg');
+    final task = await ref.putFile(
+      imageFile,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+    return await task.ref.getDownloadURL();
+  }
+
 }
