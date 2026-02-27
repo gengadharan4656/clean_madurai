@@ -13,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   bool _usePhone = true;
+  String _role = 'citizen';
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -27,6 +28,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _phoneLogin(AuthService auth) async {
+    if (_role == 'collector') {
+      _snack('Collectors must use Email login for secure access.');
+      return;
+    }
     final phone = _phoneCtrl.text.trim();
     if (phone.length < 10) {
       _snack('Enter valid 10-digit phone number');
@@ -36,8 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
       phoneNumber: '+91$phone',
       onCodeSent: () => Navigator.push(
         context,
-        MaterialPageRoute(
-            builder: (_) => OTPScreen(phoneNumber: '+91$phone')),
+        MaterialPageRoute(builder: (_) => OTPScreen(phoneNumber: '+91$phone')),
       ),
       onError: (e) => _snack(e),
     );
@@ -51,14 +55,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final ok = await auth.signInWithEmail(
       email: _emailCtrl.text.trim(),
       password: _passCtrl.text,
+      expectedRole: _role,
     );
     if (!ok && mounted) _snack(auth.error ?? 'Login failed');
   }
 
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -70,9 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
+              padding: const EdgeInsets.fromLTRB(24, 30, 24, 20),
               child: Column(
                 children: [
                   Container(
@@ -82,25 +85,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Center(
-                        child: Text('🧹',
-                            style: TextStyle(fontSize: 36))),
+                    child: const Center(child: Text('🧹', style: TextStyle(fontSize: 36))),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   const Text('Clean Madurai',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800)),
+                      style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
-                  const Text('Making Madurai cleaner together',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 13)),
+                  Text(
+                    _role == 'collector'
+                        ? 'Collector login & field operations'
+                        : 'Citizen reports for a cleaner city',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
                 ],
               ),
             ),
-
-            // Card
             Expanded(
               child: Container(
                 decoration: const BoxDecoration(
@@ -115,12 +114,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Sign In',
-                          style: TextStyle(
-                              fontSize: 22, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 20),
-
-                      // Toggle
+                      const Text('Sign In', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
+                        child: Row(
+                          children: [
+                            _RoleToggle(
+                              label: '👤 Citizen',
+                              selected: _role == 'citizen',
+                              onTap: () => setState(() => _role = 'citizen'),
+                            ),
+                            _RoleToggle(
+                              label: '🚛 Collector',
+                              selected: _role == 'collector',
+                              onTap: () => setState(() => _role = 'collector'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
@@ -128,57 +141,35 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         child: Row(
                           children: [
-                            _Tab('📱 Phone', _usePhone,
-                                () => setState(() => _usePhone = true)),
-                            _Tab('✉️ Email', !_usePhone,
-                                () => setState(() => _usePhone = false)),
+                            _Tab('📱 Phone', _usePhone, () => setState(() => _usePhone = true)),
+                            _Tab('✉️ Email', !_usePhone, () => setState(() => _usePhone = false)),
                           ],
                         ),
                       ),
                       const SizedBox(height: 20),
-
                       if (_usePhone) ...[
-                        const Text('Phone Number',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: Colors.grey)),
+                        const Text('Phone Number', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey)),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _phoneCtrl,
                           keyboardType: TextInputType.phone,
                           maxLength: 10,
-                          decoration: const InputDecoration(
-                            prefixText: '+91  ',
-                            hintText: '9876543210',
-                            counterText: '',
-                          ),
+                          decoration: const InputDecoration(prefixText: '+91  ', hintText: '9876543210', counterText: ''),
                         ),
+                        const SizedBox(height: 6),
+                        const Text('Phone OTP is available for Citizen mode.', style: TextStyle(fontSize: 11, color: Colors.black54)),
                         const SizedBox(height: 20),
-                        _BigBtn(
-                          label: 'Send OTP',
-                          loading: auth.isLoading,
-                          onTap: () => _phoneLogin(auth),
-                        ),
+                        _BigBtn(label: 'Send OTP', loading: auth.isLoading, onTap: () => _phoneLogin(auth)),
                       ] else ...[
-                        const Text('Email',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: Colors.grey)),
+                        const Text('Email', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey)),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
-                          decoration:
-                              const InputDecoration(hintText: 'your@email.com'),
+                          decoration: const InputDecoration(hintText: 'your@email.com'),
                         ),
                         const SizedBox(height: 14),
-                        const Text('Password',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                                color: Colors.grey)),
+                        const Text('Password', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey)),
                         const SizedBox(height: 6),
                         TextField(
                           controller: _passCtrl,
@@ -186,30 +177,21 @@ class _LoginScreenState extends State<LoginScreen> {
                           decoration: InputDecoration(
                             hintText: '••••••••',
                             suffixIcon: IconButton(
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
-                              onPressed: () =>
-                                  setState(() => _obscure = !_obscure),
+                              icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () => setState(() => _obscure = !_obscure),
                             ),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        _BigBtn(
-                          label: 'Sign In',
-                          loading: auth.isLoading,
-                          onTap: () => _emailLogin(auth),
-                        ),
+                        _BigBtn(label: _role == 'collector' ? 'Collector Sign In' : 'Sign In', loading: auth.isLoading, onTap: () => _emailLogin(auth)),
                         const SizedBox(height: 12),
                         Center(
                           child: TextButton(
                             onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        const RegisterScreen())),
-                            child: const Text(
-                                "Don't have an account? Register"),
+                              context,
+                              MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                            ),
+                            child: const Text("Don't have an account? Register"),
                           ),
                         ),
                       ],
@@ -219,6 +201,37 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleToggle extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _RoleToggle({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          margin: const EdgeInsets.all(4),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF1B5E20) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: selected ? Colors.white : Colors.grey.shade700, fontWeight: FontWeight.w700, fontSize: 13),
+          ),
         ),
       ),
     );
@@ -248,8 +261,7 @@ class _Tab extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: selected ? Colors.white : Colors.grey,
-                fontWeight:
-                    selected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
                 fontSize: 13,
               )),
         ),
@@ -262,8 +274,7 @@ class _BigBtn extends StatelessWidget {
   final String label;
   final bool loading;
   final VoidCallback onTap;
-  const _BigBtn(
-      {required this.label, required this.loading, required this.onTap});
+  const _BigBtn({required this.label, required this.loading, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -276,11 +287,9 @@ class _BigBtn extends StatelessWidget {
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2))
-            : Text(label,
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w700)),
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              )
+            : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
       ),
     );
   }
