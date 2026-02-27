@@ -68,6 +68,12 @@ class _ReportScreenState extends State<ReportScreen> {
     if (picked != null) setState(() => _image = File(picked.path));
   }
 
+  @override
+  void dispose() {
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     if (_image == null) {
       _snack('Please add a photo');
@@ -103,7 +109,7 @@ class _ReportScreenState extends State<ReportScreen> {
         MaterialPageRoute(builder: (_) => SuccessScreen(id: id)),
       );
     } else {
-      _snack('Submission failed. Check your internet and try again.');
+      _snack(svc.lastError ?? 'Submission failed. Please try again.');
     }
   }
 
