@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -84,8 +85,10 @@ class ComplaintService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final _uuid = const Uuid();
 
-  // REPLACE with your Vision API key
-  static const String _visionApiKey = 'YOUR_GOOGLE_VISION_API_KEY';
+  static const String _visionApiKey = String.fromEnvironment('VISION_API_KEY', defaultValue: '');
+
+  String? _lastError;
+  String? get lastError => _lastError;
 
   bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
@@ -99,6 +102,7 @@ class ComplaintService extends ChangeNotifier {
     String description = '',
   }) async {
     _isSubmitting = true;
+    _lastError = null;
     notifyListeners();
 
     try {
@@ -129,15 +133,30 @@ class ComplaintService extends ChangeNotifier {
         'resolvedAt': null,
       });
 
-      // 4. Update user complaint count
-      await _db.collection('users').doc(uid).update({
-        'totalComplaints': FieldValue.increment(1),
-      });
+      // 4. Update user complaint count (best-effort)
+      if (uid.isNotEmpty) {
+        await _db.collection('users').doc(uid).set({
+          'totalComplaints': FieldValue.increment(1),
+        }, SetOptions(merge: true));
+      }
 
       _isSubmitting = false;
       notifyListeners();
       return complaintId;
+    } on FirebaseException catch (e) {
+      _lastError = e.message ?? 'Firebase error while submitting complaint.';
+      debugPrint('Submit Firebase error: ${e.code} ${e.message}');
+      _isSubmitting = false;
+      notifyListeners();
+      return null;
+    } on PlatformException catch (e) {
+      _lastError = e.message ?? 'Device error while uploading image.';
+      debugPrint('Submit platform error: ${e.code} ${e.message}');
+      _isSubmitting = false;
+      notifyListeners();
+      return null;
     } catch (e) {
+      _lastError = 'Unexpected error while submitting complaint.';
       debugPrint('Submit error: $e');
       _isSubmitting = false;
       notifyListeners();
@@ -155,6 +174,13 @@ class ComplaintService extends ChangeNotifier {
   }
 
   Future<Map<String, String>> _analyzeWaste(File imageFile) async {
+    if (_visionApiKey.isEmpty) {
+      return {
+        'wasteType': '🗑️ Mixed Waste',
+        'recyclingMethod': 'AI temporarily unavailable. Please segregate into wet and dry waste.',
+      };
+    }
+
     try {
       final bytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(bytes);
@@ -181,13 +207,15 @@ class ComplaintService extends ChangeNotifier {
         final data = jsonDecode(response.body);
         final labels = data['responses']?[0]?['labelAnnotations'] as List?;
         if (labels != null) return _classify(labels);
+      } else {
+        debugPrint('Vision API non-200: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
       debugPrint('AI error (non-critical): $e');
     }
 
     return {
-      'wasteType': 'General Waste',
+      'wasteType': '🗑️ Mixed Waste',
       'recyclingMethod': 'Please segregate at collection point.',
     };
   }

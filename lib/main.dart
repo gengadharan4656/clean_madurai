@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
@@ -10,24 +11,40 @@ import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 
 void main() async {
-  // This must be first line always
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with error handling
+  var firebaseReady = true;
+  Object? firebaseInitError;
+
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    } else {
+      await Firebase.initializeApp();
+    }
   } catch (e) {
+    firebaseReady = false;
+    firebaseInitError = e;
     debugPrint('Firebase init error: $e');
-    // Still run the app even if firebase fails - shows error screen
   }
 
-  runApp(const CleanMaduraiApp());
+  runApp(CleanMaduraiApp(
+    firebaseReady: firebaseReady,
+    firebaseInitError: firebaseInitError,
+  ));
 }
 
 class CleanMaduraiApp extends StatelessWidget {
-  const CleanMaduraiApp({super.key});
+  final bool firebaseReady;
+  final Object? firebaseInitError;
+
+  const CleanMaduraiApp({
+    super.key,
+    required this.firebaseReady,
+    this.firebaseInitError,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +100,9 @@ class CleanMaduraiApp extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
-        home: const AuthWrapper(),
+        home: firebaseReady
+            ? const AuthWrapper()
+            : FirebaseErrorScreen(error: firebaseInitError),
       ),
     );
   }
@@ -150,6 +169,43 @@ class _LoadingScreen extends StatelessWidget {
             SizedBox(height: 40),
             CircularProgressIndicator(color: Colors.white),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class FirebaseErrorScreen extends StatelessWidget {
+  final Object? error;
+  const FirebaseErrorScreen({super.key, this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7F0),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline,
+                  color: Colors.red, size: 52),
+              const SizedBox(height: 12),
+              const Text(
+                'Unable to connect to Firebase',
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please verify firebase_options.dart / google-services configuration and retry.\n$error',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.black54),
+              ),
+            ],
+          ),
         ),
       ),
     );
