@@ -100,7 +100,7 @@ class AuthService extends ChangeNotifier {
         return false;
       }
 
-      await _createUserIfNeeded();
+      await _createUserIfNeeded(role: actualRole);
       _setLoading(false);
       notifyListeners();
       return true;

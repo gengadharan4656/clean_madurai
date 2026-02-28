@@ -11,6 +11,8 @@ import 'services/user_service.dart';
 import 'screens/landing/landing_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/collector/collector_home_screen.dart';
+import 'screens/dashboard/dashboard_screen.dart';
+import 'features/assistant/waste_assistant_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +28,10 @@ void main() async {
     } else {
       await Firebase.initializeApp();
     }
+
+    // ✅ ADD THIS LINE HERE (after Firebase init, before runApp)
+    await WasteClassifier.loadDataset();
+
   } catch (e) {
     firebaseReady = false;
     firebaseInitError = e;
@@ -102,6 +108,14 @@ class CleanMaduraiApp extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
+        builder: (context, child) {
+          return Stack(
+            children: [
+              child ?? const SizedBox.shrink(),
+              const AssistantOverlay(),
+            ],
+          );
+        },
         home: firebaseReady
             ? const AuthWrapper()
             : FirebaseErrorScreen(error: firebaseInitError),

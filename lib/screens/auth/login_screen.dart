@@ -30,14 +30,22 @@ class _LoginScreenState extends State<LoginScreen> {
       _snack('Enter email and password');
       return;
     }
+
     final ok = await auth.signInWithEmail(
       email: _emailCtrl.text.trim(),
       password: _passCtrl.text,
       expectedRole: _role,
     );
-    if (!ok && mounted) _snack(auth.error ?? 'Login failed');
-  }
 
+    if (!mounted) return;
+
+    if (ok) {
+      // ✅ return to AuthWrapper (root) so it immediately shows Home/Collector
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else {
+      _snack(auth.error ?? 'Login failed');
+    }
+  }
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));

@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/user_service.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
+import '../../features/dustbin/dustbin_finder.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -110,6 +113,11 @@ class DashboardScreen extends StatelessWidget {
                     _WardCard(ward: user?.ward ?? 'Ward 1'),
                     const SizedBox(height: 20),
 
+                    _DegradableCheckerCard(),
+                    const SizedBox(height: 20),
+                    const SizedBox(height: 8),
+                    const FindNearbyDustbinButton(),
+                    const SizedBox(height: 20),
                     // Recent complaints
                     const Text('Recent Activity',
                         style: TextStyle(
@@ -126,7 +134,340 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 }
+// -------------------- Degradable / Non-degradable Checker --------------------
 
+class _DegradableCheckerCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const _DegradableCheckerSheet(),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1B5E20).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.eco, color: Color(0xFF1B5E20)),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Degradable Checker',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Type an item name → biodegradable or non-biodegradable',
+                    style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.3),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DegradableCheckerSheet extends StatefulWidget {
+  const _DegradableCheckerSheet();
+
+  @override
+  State<_DegradableCheckerSheet> createState() => _DegradableCheckerSheetState();
+}
+
+class _DegradableCheckerSheetState extends State<_DegradableCheckerSheet> {
+  final _ctrl = TextEditingController();
+  bool _loading = false;
+  WasteResult? _result;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _check() async {
+    final input = _ctrl.text.trim();
+    if (input.isEmpty) {
+      _snack('Type an item name (example: banana peel, plastic bottle)');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _result = null;
+    });
+
+    // tiny delay to show loader smooth (optional)
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+
+    final res = WasteClassifier.classify(input);
+
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _result = res;
+    });
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottomInset),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const Text(
+              'Degradable Checker',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Type the item. Example: banana peel, paper cup, plastic bottle, batteries.',
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _ctrl,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _check(),
+              decoration: InputDecoration(
+                hintText: 'Enter waste item name...',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: _loading ? null : _check,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _check,
+                child: _loading
+                    ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Text('Check', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+            if (_result != null) ...[
+              const SizedBox(height: 12),
+              _ResultBox(result: _result!),
+            ],
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultBox extends StatelessWidget {
+  final WasteResult result;
+  const _ResultBox({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = result.type == WasteType.biodegradable
+        ? Colors.green.withOpacity(0.08)
+        : result.type == WasteType.nonBiodegradable
+        ? Colors.orange.withOpacity(0.08)
+        : Colors.blueGrey.withOpacity(0.08);
+
+    final border = result.type == WasteType.biodegradable
+        ? Colors.green.withOpacity(0.25)
+        : result.type == WasteType.nonBiodegradable
+        ? Colors.orange.withOpacity(0.25)
+        : Colors.blueGrey.withOpacity(0.25);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            result.label,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          if (result.examples != null && result.examples!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Examples: ${result.examples!.take(5).join(', ')}',
+              style: const TextStyle(color: Colors.black54, fontSize: 12),
+            ),
+          ],
+          if (result.tip != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              result.tip!,
+              style: const TextStyle(color: Colors.black54),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// -------------------- Classifier + Larger Dataset --------------------
+
+enum WasteType { biodegradable, nonBiodegradable, unknown }
+
+class WasteResult {
+  final WasteType type;
+  final String label;
+  final String? tip;
+  final List<String>? examples;
+  const WasteResult({
+    required this.type,
+    required this.label,
+    this.tip,
+    this.examples,
+  });
+}
+
+
+
+class WasteClassifier {
+  static bool _loaded = false;
+  static final Set<String> _bio = {};
+  static final Set<String> _nonBio = {};
+
+  /// Call once (app start) OR lazy-load inside classify()
+  static Future<void> loadDataset() async {
+    if (_loaded) return;
+    final raw = await rootBundle.loadString('assets/waste_dataset.json');
+    final data = jsonDecode(raw) as Map<String, dynamic>;
+
+    final bioList = (data['biodegradable'] as List).cast<String>();
+    final nonList = (data['non_biodegradable'] as List).cast<String>();
+
+    _bio.addAll(bioList.map(_normalize));
+    _nonBio.addAll(nonList.map(_normalize));
+
+    _loaded = true;
+  }
+
+  static WasteResult classify(String rawInput) {
+    final input = _normalize(rawInput);
+
+    // ✅ Lazy-load (works even if you didn't call loadDataset() earlier)
+    // NOTE: this is sync, so we can't await here.
+    // Best practice: call WasteClassifier.loadDataset() in app startup.
+    if (!_loaded) {
+      return const WasteResult(
+        type: WasteType.unknown,
+        label: 'Loading dataset… ⏳',
+        tip: 'Please try again in 1 second.',
+        examples: ['banana peel', 'plastic bottle', 'battery', 'glass'],
+      );
+    }
+
+    if (_bio.contains(input)) return _resultFor(WasteType.biodegradable);
+    if (_nonBio.contains(input)) return _resultFor(WasteType.nonBiodegradable);
+
+    // Optional: contains matching for partial inputs
+    if (_bio.any((x) => x.contains(input) || input.contains(x))) {
+      return _resultFor(WasteType.biodegradable);
+    }
+    if (_nonBio.any((x) => x.contains(input) || input.contains(x))) {
+      return _resultFor(WasteType.nonBiodegradable);
+    }
+
+    return const WasteResult(
+      type: WasteType.unknown,
+      label: 'Unknown 🤔',
+      tip: 'Try a more specific name like “plastic bottle”, “banana peel”, “battery”, “glass jar”.',
+      examples: ['banana peel', 'paper', 'plastic bottle', 'battery', 'glass jar'],
+    );
+  }
+
+  static WasteResult _resultFor(WasteType type) {
+    switch (type) {
+      case WasteType.biodegradable:
+        return const WasteResult(
+          type: WasteType.biodegradable,
+          label: 'Biodegradable ✅',
+          tip: 'Put in WET bin / compostable waste.',
+          examples: ['banana peel', 'vegetable waste', 'food leftovers', 'tea leaves', 'paper'],
+        );
+      case WasteType.nonBiodegradable:
+        return const WasteResult(
+          type: WasteType.nonBiodegradable,
+          label: 'Non-biodegradable ✅',
+          tip: 'Put in DRY bin / recyclables. Keep plastic, glass, metal separate if possible.',
+          examples: ['plastic bottle', 'chips packet', 'thermocol', 'glass jar', 'metal can'],
+        );
+      case WasteType.unknown:
+        return const WasteResult(type: WasteType.unknown, label: 'Unknown 🤔');
+    }
+  }
+
+  static String _normalize(String s) {
+    final lower = s.toLowerCase().trim();
+    final cleaned = lower.replaceAll(RegExp(r'[^a-z0-9\s-]'), ' ');
+    return cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+}
 class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {

@@ -170,7 +170,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!ok) {
       _snack(auth.error ?? 'Registration failed');
     } else {
-      Navigator.pop(context);
+      // ✅ close Register + Login and reveal AuthWrapper which will route to Home/Collector
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
