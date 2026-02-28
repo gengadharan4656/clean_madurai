@@ -1,7 +1,8 @@
+// lib/screens/auth/login_screen.dart
+// MODIFIED: Removed phone/OTP tab. Email + Password ONLY.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
-import 'otp_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,39 +13,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool _usePhone = true;
   String _role = 'citizen';
-  final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscure = true;
 
   @override
   void dispose() {
-    _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _phoneLogin(AuthService auth) async {
-    if (_role == 'collector') {
-      _snack('Collectors must use Email login for secure access.');
-      return;
-    }
-    final phone = _phoneCtrl.text.trim();
-    if (phone.length < 10) {
-      _snack('Enter valid 10-digit phone number');
-      return;
-    }
-    await auth.sendOTP(
-      phoneNumber: '+91$phone',
-      onCodeSent: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => OTPScreen(phoneNumber: '+91$phone')),
-      ),
-      onError: (e) => _snack(e),
-    );
   }
 
   Future<void> _emailLogin(AuthService auth) async {
@@ -85,11 +63,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Center(child: Text('🧹', style: TextStyle(fontSize: 36))),
+                    child: const Center(
+                        child: Text('🧹', style: TextStyle(fontSize: 36))),
                   ),
                   const SizedBox(height: 14),
                   const Text('Clean Madurai',
-                      style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
                   Text(
                     _role == 'collector'
@@ -114,10 +96,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Sign In', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                      const Text('Sign In',
+                          style: TextStyle(
+                              fontSize: 22, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 12),
                       Container(
-                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
+                        decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(10)),
                         child: Row(
                           children: [
                             _RoleToggle(
@@ -133,68 +119,59 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 20),
+                      const Text('Email',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: Colors.grey)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration:
+                            const InputDecoration(hintText: 'enter mail id'),
+                      ),
                       const SizedBox(height: 14),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            _Tab('📱 Phone', _usePhone, () => setState(() => _usePhone = true)),
-                            _Tab('✉️ Email', !_usePhone, () => setState(() => _usePhone = false)),
-                          ],
+                      const Text('Password',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: Colors.grey)),
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: _passCtrl,
+                        obscureText: _obscure,
+                        decoration: InputDecoration(
+                          hintText: 'enter password',
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscure
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
-                      if (_usePhone) ...[
-                        const Text('Phone Number', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey)),
-                        const SizedBox(height: 6),
-                        TextField(
-                          controller: _phoneCtrl,
-                          keyboardType: TextInputType.phone,
-                          maxLength: 10,
-                          decoration: const InputDecoration(prefixText: '+91  ', hintText: '9876543210', counterText: ''),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text('Phone OTP is available for Citizen mode.', style: TextStyle(fontSize: 11, color: Colors.black54)),
-                        const SizedBox(height: 20),
-                        _BigBtn(label: 'Send OTP', loading: auth.isLoading, onTap: () => _phoneLogin(auth)),
-                      ] else ...[
-                        const Text('Email', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey)),
-                        const SizedBox(height: 6),
-                        TextField(
-                          controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(hintText: 'your@email.com'),
-                        ),
-                        const SizedBox(height: 14),
-                        const Text('Password', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey)),
-                        const SizedBox(height: 6),
-                        TextField(
-                          controller: _passCtrl,
-                          obscureText: _obscure,
-                          decoration: InputDecoration(
-                            hintText: '••••••••',
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setState(() => _obscure = !_obscure),
-                            ),
+                      _BigBtn(
+                        label: _role == 'collector'
+                            ? 'Collector Sign In'
+                            : 'Sign In',
+                        loading: auth.isLoading,
+                        onTap: () => _emailLogin(auth),
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const RegisterScreen()),
                           ),
+                          child: const Text("Don't have an account? Register"),
                         ),
-                        const SizedBox(height: 20),
-                        _BigBtn(label: _role == 'collector' ? 'Collector Sign In' : 'Sign In', loading: auth.isLoading, onTap: () => _emailLogin(auth)),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: TextButton(
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                            ),
-                            child: const Text("Don't have an account? Register"),
-                          ),
-                        ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
@@ -211,7 +188,6 @@ class _RoleToggle extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-
   const _RoleToggle({required this.label, required this.selected, required this.onTap});
 
   @override
@@ -230,40 +206,11 @@ class _RoleToggle extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(color: selected ? Colors.white : Colors.grey.shade700, fontWeight: FontWeight.w700, fontSize: 13),
+            style: TextStyle(
+                color: selected ? Colors.white : Colors.grey.shade700,
+                fontWeight: FontWeight.w700,
+                fontSize: 13),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Tab extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _Tab(this.label, this.selected, this.onTap);
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.all(4),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFF1B5E20) : Colors.transparent,
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Text(label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: selected ? Colors.white : Colors.grey,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                fontSize: 13,
-              )),
         ),
       ),
     );
@@ -284,12 +231,10 @@ class _BigBtn extends StatelessWidget {
       child: ElevatedButton(
         onPressed: loading ? null : onTap,
         child: loading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              )
-            : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ? const SizedBox(width: 20, height: 20,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : Text(label,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
       ),
     );
   }

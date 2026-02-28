@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../home/home_screen.dart';
+import '../waste_guidance/waste_guidance_screen.dart';
 
 class SuccessScreen extends StatelessWidget {
   final String id;
@@ -19,6 +20,7 @@ class SuccessScreen extends StatelessWidget {
           final d = snap.data?.data() as Map<String, dynamic>?;
           final wasteType = d?['aiWasteType'] ?? 'Analyzing...';
           final method = d?['recyclingMethod'] ?? 'Please wait...';
+          final category = d?['category'] as String? ?? '';
 
           return SafeArea(
             child: Padding(
@@ -76,8 +78,7 @@ class SuccessScreen extends StatelessWidget {
                       children: [
                         const Row(
                           children: [
-                            Text('🤖',
-                                style: TextStyle(fontSize: 22)),
+                            Text('🤖', style: TextStyle(fontSize: 22)),
                             SizedBox(width: 8),
                             Text('AI Waste Analysis',
                                 style: TextStyle(
@@ -92,7 +93,27 @@ class SuccessScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+
+                  // Feature 3: Waste Guidance CTA
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => WasteGuidanceScreen(
+                          preselectedCategory: category,
+                        ),
+                      ),
+                    ),
+                    icon: const Text('♻️'),
+                    label: const Text('View Full Segregation Guide'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1B5E20),
+                      side: const BorderSide(color: Color(0xFF1B5E20)),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
 
                   // Steps card
                   Container(
@@ -105,8 +126,7 @@ class SuccessScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('What happens next?',
-                            style:
-                                TextStyle(fontWeight: FontWeight.w700)),
+                            style: TextStyle(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),
                         _Step('1', 'Assigned to ward officer'),
                         _Step('2', 'Sanitation worker dispatched'),

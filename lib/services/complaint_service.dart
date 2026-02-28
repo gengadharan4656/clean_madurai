@@ -24,6 +24,9 @@ class ComplaintModel {
   final String? recyclingMethod;
   final DateTime? createdAt;
   final DateTime? resolvedAt;
+  // Feature 1: resolution metadata
+  final double? resolutionTimeHours;
+  final String? resolutionBadge;
 
   ComplaintModel({
     required this.id,
@@ -41,6 +44,8 @@ class ComplaintModel {
     this.recyclingMethod,
     this.createdAt,
     this.resolvedAt,
+    this.resolutionTimeHours,
+    this.resolutionBadge,
   });
 
   factory ComplaintModel.fromMap(String id, Map<String, dynamic> d) {
@@ -65,6 +70,8 @@ class ComplaintModel {
       resolvedAt: d['resolvedAt'] != null
           ? (d['resolvedAt'] as dynamic).toDate()
           : null,
+      resolutionTimeHours: (d['resolutionTimeHours'] as num?)?.toDouble(),
+      resolutionBadge: d['resolutionBadge'] as String?,
     );
   }
 
@@ -85,7 +92,8 @@ class ComplaintService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final _uuid = const Uuid();
 
-  static const String _visionApiKey = String.fromEnvironment('VISION_API_KEY', defaultValue: '');
+  static const String _visionApiKey =
+      String.fromEnvironment('VISION_API_KEY', defaultValue: '');
 
   String? _lastError;
   String? get lastError => _lastError;
@@ -109,13 +117,9 @@ class ComplaintService extends ChangeNotifier {
       final uid = _auth.currentUser?.uid ?? '';
       final complaintId = _uuid.v4().substring(0, 8).toUpperCase();
 
-      // 1. Upload image
       final imageUrl = await _uploadImage(imageFile, complaintId);
-
-      // 2. AI analysis
       final aiResult = await _analyzeWaste(imageFile);
 
-      // 3. Save to Firestore
       await _db.collection('complaints').doc(complaintId).set({
         'id': complaintId,
         'userId': uid,
@@ -131,9 +135,11 @@ class ComplaintService extends ChangeNotifier {
         'recyclingMethod': aiResult['recyclingMethod'],
         'createdAt': FieldValue.serverTimestamp(),
         'resolvedAt': null,
+        // Feature 1 fields initialised as null
+        'resolutionTimeHours': null,
+        'resolutionBadge': null,
       });
 
-      // 4. Update user complaint count (best-effort)
       if (uid.isNotEmpty) {
         await _db.collection('users').doc(uid).set({
           'totalComplaints': FieldValue.increment(1),
@@ -172,9 +178,6 @@ class ComplaintService extends ChangeNotifier {
       imageFile,
       SettableMetadata(contentType: 'image/jpeg'),
     );
-
-    // Firebase Storage may briefly return object-not-found right after upload.
-    // Retry once to avoid surfacing a confusing message to users.
     try {
       return await task.ref.getDownloadURL();
     } on FirebaseException catch (e) {
@@ -188,7 +191,8 @@ class ComplaintService extends ChangeNotifier {
     if (_visionApiKey.isEmpty) {
       return {
         'wasteType': '🗑️ Mixed Waste',
-        'recyclingMethod': 'AI temporarily unavailable. Please segregate into wet and dry waste.',
+        'recyclingMethod':
+            'AI temporarily unavailable. Please segregate into wet and dry waste.',
       };
     }
 
@@ -219,7 +223,8 @@ class ComplaintService extends ChangeNotifier {
         final labels = data['responses']?[0]?['labelAnnotations'] as List?;
         if (labels != null) return _classify(labels);
       } else {
-        debugPrint('Vision API non-200: ${response.statusCode} ${response.body}');
+        debugPrint(
+            'Vision API non-200: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
       debugPrint('AI error (non-critical): $e');
@@ -334,8 +339,26 @@ class ComplaintService extends ChangeNotifier {
   }) async {
     try {
       final update = <String, dynamic>{'status': status};
+
       if (status == 'resolved') {
+        final now = DateTime.now();
         update['resolvedAt'] = FieldValue.serverTimestamp();
+
+        // Feature 1: compute resolutionTimeHours and badge
+        final doc = await _db.collection('complaints').doc(complaintId).get();
+        final createdAt =
+            (doc.data()?['createdAt'] as Timestamp?)?.toDate();
+        if (createdAt != null) {
+          final hours = now.difference(createdAt).inMinutes / 60.0;
+          update['resolutionTimeHours'] = double.parse(hours.toStringAsFixed(2));
+          if (hours < 6) {
+            update['resolutionBadge'] = 'Fast';
+          } else if (hours <= 24) {
+            update['resolutionBadge'] = 'Normal';
+          } else {
+            update['resolutionBadge'] = 'Delayed';
+          }
+        }
       }
 
       if (afterImage != null) {
@@ -376,5 +399,4 @@ class ComplaintService extends ChangeNotifier {
     );
     return await task.ref.getDownloadURL();
   }
-
 }

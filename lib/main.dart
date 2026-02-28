@@ -8,7 +8,7 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/complaint_service.dart';
 import 'services/user_service.dart';
-import 'screens/auth/login_screen.dart';
+import 'screens/landing/landing_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/collector/collector_home_screen.dart';
 
@@ -110,8 +110,8 @@ class CleanMaduraiApp extends StatelessWidget {
   }
 }
 
-// KEY: This handles persistent login
-// Firebase remembers the user - no re-login needed on app restart
+// KEY: This handles persistent login.
+// Unauthenticated users now see the Landing page.
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -120,26 +120,29 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Show loading while checking auth state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const _LoadingScreen();
         }
 
-        // Firebase error - show login anyway
         if (snapshot.hasError) {
-          return const LoginScreen();
+          // Show landing page on error so user can try to log in
+          return const LandingScreen();
         }
 
         // User already logged in → route by role
         if (snapshot.hasData && snapshot.data != null) {
           final uid = snapshot.data!.uid;
           return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(uid)
+                .snapshots(),
             builder: (context, userSnap) {
               if (userSnap.connectionState == ConnectionState.waiting) {
                 return const _LoadingScreen();
               }
-              final role = userSnap.data?.data()?['role'] as String? ?? 'citizen';
+              final role =
+                  userSnap.data?.data()?['role'] as String? ?? 'citizen';
               if (role == 'collector') {
                 return const CollectorHomeScreen();
               }
@@ -148,8 +151,8 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // Not logged in → show login
-        return const LoginScreen();
+        // Not logged in → show scrollable landing page
+        return const LandingScreen();
       },
     );
   }
@@ -204,13 +207,11 @@ class FirebaseErrorScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
-                  color: Colors.red, size: 52),
+              const Icon(Icons.error_outline, color: Colors.red, size: 52),
               const SizedBox(height: 12),
               const Text(
                 'Unable to connect to Firebase',
-                style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
