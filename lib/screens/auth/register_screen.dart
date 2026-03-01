@@ -1,5 +1,11 @@
+// lib/screens/auth/register_screen.dart
+// UPDATED: Tamil/English toggle + localized strings (no other working logic changed)
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../i18n/app_lang.dart';
+import '../../i18n/strings.dart';
+
 import '../../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -38,7 +44,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Account'),
+        title: Text(S.of(context, 'createAccount')),
+        actions: [
+          TextButton(
+            onPressed: () => context.read<AppLang>().toggle(),
+            child: Text(
+              S.of(context, 'langBtn'), // தமிழ் / EN
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -54,13 +69,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   _RoleTab(
                     icon: Icons.person,
-                    label: 'Citizen',
+                    label: S.of(context, 'role_citizen_plain'),
                     selected: _role == 'citizen',
                     onTap: () => setState(() => _role = 'citizen'),
                   ),
                   _RoleTab(
                     icon: Icons.local_shipping,
-                    label: 'Garbage Collector',
+                    label: S.of(context, 'role_collector_plain'),
                     selected: _role == 'collector',
                     onTap: () => setState(() => _role = 'collector'),
                   ),
@@ -68,24 +83,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _field('Full Name', _nameCtrl, hint: 'Your full name'),
+
+            _field(S.of(context, 'fullName'), _nameCtrl, hint: S.of(context, 'fullName_hint')),
             const SizedBox(height: 14),
-            _field('Email', _emailCtrl,
-                hint: 'your@email.com', type: TextInputType.emailAddress),
+
+            _field(
+              S.of(context, 'email'),
+              _emailCtrl,
+              hint: S.of(context, 'email_hint'),
+              type: TextInputType.emailAddress,
+            ),
             const SizedBox(height: 14),
-            _field('Password', _passCtrl,
-                hint: 'Min 6 characters',
-                obscure: _obscure,
-                suffix: IconButton(
-                  onPressed: () => setState(() => _obscure = !_obscure),
-                  icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
-                )),
+
+            _field(
+              S.of(context, 'password'),
+              _passCtrl,
+              hint: S.of(context, 'password_hint_register'),
+              obscure: _obscure,
+              suffix: IconButton(
+                onPressed: () => setState(() => _obscure = !_obscure),
+                icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+              ),
+            ),
             const SizedBox(height: 14),
-            const Text('Your Ward',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: Colors.grey)),
+
+            Text(
+              S.of(context, 'yourWard'),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Colors.grey,
+              ),
+            ),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
               value: _ward,
@@ -95,19 +124,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   .toList(),
               onChanged: (v) => setState(() => _ward = v!),
             ),
+
             if (_role == 'collector') ...[
               const SizedBox(height: 18),
-              const Text('Collector Details',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                S.of(context, 'collectorDetails'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 10),
-              _field('Worker ID', _workerIdCtrl, hint: 'Ex: MDU-GC-1076'),
+
+              _field(S.of(context, 'workerId'), _workerIdCtrl, hint: S.of(context, 'workerId_hint')),
               const SizedBox(height: 14),
-              _field('Aadhaar Number', _aadhaarCtrl,
-                  hint: '12 digits', type: TextInputType.number),
+
+              _field(
+                S.of(context, 'aadhaarNumber'),
+                _aadhaarCtrl,
+                hint: S.of(context, 'aadhaar_hint'),
+                type: TextInputType.number,
+              ),
               const SizedBox(height: 14),
-              _field('Vehicle Number', _vehicleCtrl,
-                  hint: 'TN 58 AB 1234'),
+
+              _field(S.of(context, 'vehicleNumber'), _vehicleCtrl, hint: S.of(context, 'vehicle_hint')),
             ],
+
             const SizedBox(height: 28),
             SizedBox(
               width: double.infinity,
@@ -115,15 +154,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: ElevatedButton(
                 onPressed: auth.isLoading ? null : _submit,
                 child: auth.isLoading
-                    ? const CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2)
+                    ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
                     : Text(
-                        _role == 'collector'
-                            ? 'Create Collector Account'
-                            : 'Create Citizen Account',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700),
-                      ),
+                  _role == 'collector'
+                      ? S.of(context, 'createCollectorAccount')
+                      : S.of(context, 'createCitizenAccount'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],
@@ -138,7 +175,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_nameCtrl.text.trim().isEmpty ||
         _emailCtrl.text.trim().isEmpty ||
         _passCtrl.text.isEmpty) {
-      _snack('Fill all mandatory fields');
+      _snack(S.of(context, 'reg_err_required'));
       return;
     }
 
@@ -146,7 +183,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (_workerIdCtrl.text.trim().isEmpty ||
           _aadhaarCtrl.text.trim().length != 12 ||
           _vehicleCtrl.text.trim().isEmpty) {
-        _snack('Collector needs Worker ID, 12-digit Aadhaar and Vehicle Number');
+        _snack(S.of(context, 'reg_err_collector_fields'));
         return;
       }
     }
@@ -159,16 +196,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       role: _role,
       extraDetails: _role == 'collector'
           ? {
-              'workerId': _workerIdCtrl.text.trim(),
-              'aadhaarLast4': _aadhaarCtrl.text.trim().substring(8),
-              'vehicleNumber': _vehicleCtrl.text.trim(),
-            }
+        'workerId': _workerIdCtrl.text.trim(),
+        'aadhaarLast4': _aadhaarCtrl.text.trim().substring(8),
+        'vehicleNumber': _vehicleCtrl.text.trim(),
+      }
           : null,
     );
 
     if (!mounted) return;
     if (!ok) {
-      _snack(auth.error ?? 'Registration failed');
+      _snack(auth.error ?? S.of(context, 'reg_err_failed'));
     } else {
       // ✅ close Register + Login and reveal AuthWrapper which will route to Home/Collector
       Navigator.of(context).popUntil((route) => route.isFirst);
@@ -180,21 +217,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _field(
-    String label,
-    TextEditingController ctrl, {
-    String? hint,
-    TextInputType? type,
-    bool obscure = false,
-    Widget? suffix,
-  }) {
+      String label,
+      TextEditingController ctrl, {
+        String? hint,
+        TextInputType? type,
+        bool obscure = false,
+        Widget? suffix,
+      }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: Colors.grey)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: Colors.grey,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: ctrl,

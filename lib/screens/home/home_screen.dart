@@ -1,4 +1,9 @@
+// lib/screens/home/home_screen.dart
+// UPDATED: Tamil/English bottom nav labels (no other logic changed)
 import 'package:flutter/material.dart';
+
+import '../../i18n/strings.dart';
+
 import '../dashboard/dashboard_screen.dart';
 import '../report/report_screen.dart';
 import '../complaints/my_complaints_screen.dart';
@@ -34,27 +39,32 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: const Color(0xFF1B5E20),
         unselectedItemColor: Colors.grey,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),
-        items: const [
+        items: [
           BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home'),
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: S.of(context, 'nav_home'),
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outline),
-              activeIcon: Icon(Icons.add_circle),
-              label: 'Report'),
+            icon: const Icon(Icons.add_circle_outline),
+            activeIcon: const Icon(Icons.add_circle),
+            label: S.of(context, 'nav_report'),
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.list_alt_outlined),
-              activeIcon: Icon(Icons.list_alt),
-              label: 'My Reports'),
+            icon: const Icon(Icons.list_alt_outlined),
+            activeIcon: const Icon(Icons.list_alt),
+            label: S.of(context, 'nav_myReports'),
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.public_outlined),
-              activeIcon: Icon(Icons.public),
-              label: 'Feed'),
+            icon: const Icon(Icons.public_outlined),
+            activeIcon: const Icon(Icons.public),
+            label: S.of(context, 'nav_feed'),
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile'),
+            icon: const Icon(Icons.person_outline),
+            activeIcon: const Icon(Icons.person),
+            label: S.of(context, 'nav_profile'),
+          ),
         ],
       ),
     );

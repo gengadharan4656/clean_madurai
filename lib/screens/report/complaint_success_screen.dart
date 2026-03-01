@@ -1,8 +1,12 @@
 // lib/screens/report/complaint_success_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../main.dart';
 import '../home/home_screen.dart';
+
+// ✅ ADD: i18n strings
+import '../../i18n/strings.dart';
 
 class ComplaintSuccessScreen extends StatelessWidget {
   final String complaintId;
@@ -19,8 +23,9 @@ class ComplaintSuccessScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snap) {
           final data = snap.data?.data() as Map<String, dynamic>?;
-          final aiWasteType = data?['aiWasteType'] ?? 'Analyzing...';
-          final recyclingMethod = data?['recyclingMethod'] ?? 'Please wait...';
+          final aiWasteType = data?['aiWasteType'] ?? S.of(context, 'analyzing');
+          final recyclingMethod =
+              data?['recyclingMethod'] ?? S.of(context, 'please_wait');
           final aiDescription = data?['aiDescription'] ?? '';
 
           return SafeArea(
@@ -43,39 +48,55 @@ class ComplaintSuccessScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Report Submitted!',
-                    style: TextStyle(
+
+                  Text(
+                    S.of(context, 'report_submitted'),
+                    style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.textDark,
                     ),
                   ),
                   const SizedBox(height: 4),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Complaint ID: ', style: TextStyle(color: AppTheme.textMed)),
+                      Text(
+                        '${S.of(context, 'complaint_id')}: ',
+                        style: const TextStyle(color: AppTheme.textMed),
+                      ),
                       Text(
                         '#$complaintId',
-                        style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.primary),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.primary,
+                        ),
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF8E1),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.star, color: Colors.amber, size: 18),
-                        SizedBox(width: 4),
-                        Text('+10 Points Earned!', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.orange)),
+                        const Icon(Icons.star,
+                            color: Colors.amber, size: 18),
+                        const SizedBox(width: 4),
+                        Text(
+                          S.of(context, 'points_earned_10'),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.orange,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -89,7 +110,8 @@ class ComplaintSuccessScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+                      border:
+                      Border.all(color: AppTheme.accent.withOpacity(0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,12 +124,13 @@ class ComplaintSuccessScreen extends StatelessWidget {
                                 color: AppTheme.primary.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Text('🤖', style: TextStyle(fontSize: 24)),
+                              child:
+                              const Text('🤖', style: TextStyle(fontSize: 24)),
                             ),
                             const SizedBox(width: 10),
-                            const Text(
-                              'AI Waste Analysis',
-                              style: TextStyle(
+                            Text(
+                              S.of(context, 'ai_waste_analysis'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: AppTheme.textDark,
@@ -116,12 +139,21 @@ class ComplaintSuccessScreen extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        _AiRow(label: '🗂️ Waste Type', value: aiWasteType),
+                        _AiRow(
+                          label: S.of(context, 'waste_type_label'),
+                          value: aiWasteType,
+                        ),
                         const Divider(height: 20),
-                        _AiRow(label: '♻️ How to Dispose', value: recyclingMethod),
+                        _AiRow(
+                          label: S.of(context, 'how_to_dispose_label'),
+                          value: recyclingMethod,
+                        ),
                         if (aiDescription.isNotEmpty) ...[
                           const Divider(height: 20),
-                          _AiRow(label: '💡 Info', value: aiDescription),
+                          _AiRow(
+                            label: S.of(context, 'info_label'),
+                            value: aiDescription,
+                          ),
                         ],
                       ],
                     ),
@@ -140,12 +172,15 @@ class ComplaintSuccessScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('What happens next?', style: TextStyle(fontWeight: FontWeight.w700)),
+                        Text(
+                          S.of(context, 'what_next'),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                         const SizedBox(height: 8),
-                        _Step('1', 'Your report is assigned to a ward officer'),
-                        _Step('2', 'A sanitation worker is dispatched'),
-                        _Step('3', 'You\'ll be notified when resolved'),
-                        _Step('4', 'Earn points when complaint resolves!'),
+                        _Step('1', S.of(context, 'next_step_1')),
+                        _Step('2', S.of(context, 'next_step_2')),
+                        _Step('3', S.of(context, 'next_step_3')),
+                        _Step('4', S.of(context, 'next_step_4')),
                       ],
                     ),
                   ),
@@ -158,9 +193,9 @@ class ComplaintSuccessScreen extends StatelessWidget {
                       onPressed: () => Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const HomeScreen()),
-                        (_) => false,
+                            (_) => false,
                       ),
-                      child: const Text('Back to Home'),
+                      child: Text(S.of(context, 'back_to_home')),
                     ),
                   ),
                 ],
@@ -182,9 +217,12 @@ class _AiRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppTheme.textMed, fontSize: 12)),
+        Text(label,
+            style: const TextStyle(color: AppTheme.textMed, fontSize: 12)),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textDark)),
+        Text(value,
+            style: const TextStyle(
+                fontWeight: FontWeight.w600, color: AppTheme.textDark)),
       ],
     );
   }
@@ -208,7 +246,14 @@ class _Step extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Center(
-              child: Text(num, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+              child: Text(
+                num,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 8),

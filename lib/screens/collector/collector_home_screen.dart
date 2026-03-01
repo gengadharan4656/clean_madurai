@@ -1,9 +1,16 @@
+// lib/screens/collector/collector_home_screen.dart
+// UPDATED: Tamil/English labels using S.of(context, key)
+// NOTE: No feature logic changed.
+
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+
+import '../../i18n/strings.dart';
+
 import '../../services/auth_service.dart';
 import '../../services/complaint_service.dart';
 import '../../services/user_service.dart';
@@ -37,11 +44,23 @@ class _CollectorHomeScreenState extends State<CollectorHomeScreen> {
         onTap: (v) => setState(() => _index = v),
         selectedItemColor: const Color(0xFF1B5E20),
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.assignment), label: 'Queue'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Near Me'),
-          BottomNavigationBarItem(icon: Icon(Icons.route), label: 'Route'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.assignment),
+            label: S.of(context, 'c_nav_queue'),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.map),
+            label: S.of(context, 'c_nav_nearMe'),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.route),
+            label: S.of(context, 'c_nav_route'),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.person),
+            label: S.of(context, 'c_nav_profile'),
+          ),
         ],
       ),
     );
@@ -61,24 +80,22 @@ class _CollectorQueueTab extends StatelessWidget {
         final ward = userSnap.data?.ward ?? 'Ward 1';
         return Scaffold(
           appBar: AppBar(
-            title: Text('Collector Queue • $ward'),
+            title: Text('${S.of(context, 'c_queue_title')} • $ward'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.public),
-                tooltip: 'Public Board',
+                tooltip: S.of(context, 'c_public_board'),
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (_) => const PublicBoardScreen()),
+                  MaterialPageRoute(builder: (_) => const PublicBoardScreen()),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.recycling),
-                tooltip: 'Waste Guide',
+                tooltip: S.of(context, 'c_waste_guide'),
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(
-                      builder: (_) => const WasteGuidanceScreen()),
+                  MaterialPageRoute(builder: (_) => const WasteGuidanceScreen()),
                 ),
               ),
             ],
@@ -91,14 +108,12 @@ class _CollectorQueueTab extends StatelessWidget {
                 return const Center(child: CircularProgressIndicator());
               }
               if (list.isEmpty) {
-                return const Center(
-                    child: Text('No pending complaints in your ward.'));
+                return Center(child: Text(S.of(context, 'c_no_pending')));
               }
               return ListView.builder(
                 padding: const EdgeInsets.all(12),
                 itemCount: list.length,
-                itemBuilder: (_, i) =>
-                    _CollectorComplaintCard(c: list[i]),
+                itemBuilder: (_, i) => _CollectorComplaintCard(c: list[i]),
               );
             },
           ),
@@ -113,8 +128,7 @@ class _CollectorComplaintCard extends StatefulWidget {
   const _CollectorComplaintCard({required this.c});
 
   @override
-  State<_CollectorComplaintCard> createState() =>
-      _CollectorComplaintCardState();
+  State<_CollectorComplaintCard> createState() => _CollectorComplaintCardState();
 }
 
 class _CollectorComplaintCardState extends State<_CollectorComplaintCard> {
@@ -132,24 +146,24 @@ class _CollectorComplaintCardState extends State<_CollectorComplaintCard> {
           children: [
             Text('${c.category} • #${c.id}',
                 style: const TextStyle(fontWeight: FontWeight.w700)),
-            Text('Status: ${c.status.replaceAll('_', ' ')}'),
+            Text('${S.of(context, 'status')}: ${c.status.replaceAll('_', ' ')}'),
             Text(
-                'Location: ${c.lat.toStringAsFixed(4)}, ${c.lng.toStringAsFixed(4)}'),
+              '${S.of(context, 'location')}: ${c.lat.toStringAsFixed(4)}, ${c.lng.toStringAsFixed(4)}',
+            ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed:
-                        _busy ? null : () => _markStatus('in_progress'),
-                    child: const Text('Start Work'),
+                    onPressed: _busy ? null : () => _markStatus('in_progress'),
+                    child: Text(S.of(context, 'c_start_work')),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _busy ? null : _resolveWithAfterImage,
-                    child: const Text('Resolve + After Photo'),
+                    child: Text(S.of(context, 'c_resolve_after_photo')),
                   ),
                 ),
               ],
@@ -171,15 +185,19 @@ class _CollectorComplaintCardState extends State<_CollectorComplaintCard> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(ok
-              ? 'Updated to $status'
-              : (svc.lastError ?? 'Update failed'))),
+        content: Text(
+          ok ? '${S.of(context, 'updated_to')} $status' : (svc.lastError ?? S.of(context, 'update_failed')),
+        ),
+      ),
     );
   }
 
   Future<void> _resolveWithAfterImage() async {
     final picked = await ImagePicker().pickImage(
-        source: ImageSource.camera, imageQuality: 80, maxWidth: 1080);
+      source: ImageSource.camera,
+      imageQuality: 80,
+      maxWidth: 1080,
+    );
     if (picked == null) return;
 
     setState(() => _busy = true);
@@ -193,9 +211,10 @@ class _CollectorComplaintCardState extends State<_CollectorComplaintCard> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(ok
-              ? 'Complaint resolved and photo uploaded'
-              : (svc.lastError ?? 'Resolve failed'))),
+        content: Text(
+          ok ? S.of(context, 'c_resolved_uploaded') : (svc.lastError ?? S.of(context, 'resolve_failed')),
+        ),
+      ),
     );
   }
 }
@@ -230,7 +249,7 @@ class _NearbyMapTabState extends State<_NearbyMapTab> {
     final uid = context.read<AuthService>().currentUser?.uid ?? '';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dustbin Near Me')),
+      appBar: AppBar(title: Text(S.of(context, 'c_dustbin_near_me'))),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -238,9 +257,8 @@ class _NearbyMapTabState extends State<_NearbyMapTab> {
           children: [
             SwitchListTile(
               value: _sharing,
-              title: const Text('Share my live location'),
-              subtitle: const Text(
-                  'Used to notify citizens when collector is within 100m'),
+              title: Text(S.of(context, 'c_share_live_location')),
+              subtitle: Text(S.of(context, 'c_share_live_location_sub')),
               onChanged: (v) async {
                 setState(() => _sharing = v);
                 if (_pos == null || uid.isEmpty) return;
@@ -257,22 +275,22 @@ class _NearbyMapTabState extends State<_NearbyMapTab> {
               },
             ),
             const SizedBox(height: 8),
-            const Text('Markers preview',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            Text(S.of(context, 'c_markers_preview'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             _markerCard(
-                '📍 User marker',
-                _pos == null
-                    ? 'Unknown'
-                    : '${_pos!.latitude.toStringAsFixed(4)}, ${_pos!.longitude.toStringAsFixed(4)}'),
-            _markerCard(
-                '🗑️ Dustbin markers', 'Load from `dustbins` collection'),
-            _markerCard(
-                '🚛 Worker live marker', 'From `worker_live` collection'),
+              S.of(context, 'c_user_marker'),
+              _pos == null
+                  ? S.of(context, 'unknown')
+                  : '${_pos!.latitude.toStringAsFixed(4)}, ${_pos!.longitude.toStringAsFixed(4)}',
+            ),
+            _markerCard(S.of(context, 'c_dustbin_markers'),
+                S.of(context, 'c_dustbin_markers_sub')),
+            _markerCard(S.of(context, 'c_worker_live_marker'),
+                S.of(context, 'c_worker_live_marker_sub')),
             const SizedBox(height: 16),
             Expanded(
-              child:
-                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
                     .collection('dustbins')
                     .limit(20)
@@ -280,9 +298,9 @@ class _NearbyMapTabState extends State<_NearbyMapTab> {
                 builder: (context, snap) {
                   final bins = snap.data?.docs ?? [];
                   if (bins.isEmpty) {
-                    return const Center(
-                        child: Text(
-                            'No dustbin points found. Add docs in Firestore `dustbins` collection.'));
+                    return Center(
+                      child: Text(S.of(context, 'c_no_dustbins_firestore')),
+                    );
                   }
                   return ListView.builder(
                     itemCount: bins.length,
@@ -290,14 +308,16 @@ class _NearbyMapTabState extends State<_NearbyMapTab> {
                       final d = bins[i].data();
                       final lat = (d['lat'] as num?)?.toDouble() ?? 0;
                       final lng = (d['lng'] as num?)?.toDouble() ?? 0;
-                      final name = d['name'] ?? 'Dustbin ${i + 1}';
+                      final name =
+                          (d['name'] as String?) ?? '${S.of(context, 'dustbin')} ${i + 1}';
                       final distance = _pos == null
                           ? null
                           : Geolocator.distanceBetween(
-                              _pos!.latitude,
-                              _pos!.longitude,
-                              lat,
-                              lng);
+                        _pos!.latitude,
+                        _pos!.longitude,
+                        lat,
+                        lng,
+                      );
                       return ListTile(
                         leading: const Text('🗑️'),
                         title: Text(name),
@@ -305,11 +325,14 @@ class _NearbyMapTabState extends State<_NearbyMapTab> {
                             '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}'),
                         trailing: distance == null
                             ? null
-                            : Text('${distance.round()} m',
-                                style: TextStyle(
-                                    color: distance <= 100
-                                        ? Colors.green
-                                        : Colors.grey)),
+                            : Text(
+                          '${distance.round()} ${S.of(context, 'meters')}',
+                          style: TextStyle(
+                            color: distance <= 100
+                                ? Colors.green
+                                : Colors.grey,
+                          ),
+                        ),
                       );
                     },
                   );
@@ -323,12 +346,11 @@ class _NearbyMapTabState extends State<_NearbyMapTab> {
   }
 
   Widget _markerCard(String title, String subtitle) {
-    return Card(
-        child: ListTile(title: Text(title), subtitle: Text(subtitle)));
+    return Card(child: ListTile(title: Text(title), subtitle: Text(subtitle)));
   }
 }
 
-// NEW: Route tab — wraps CleanRouteScreen with ward from user profile
+// Route tab — wraps CleanRouteScreen with ward from user profile
 class _CollectorRouteTab extends StatelessWidget {
   const _CollectorRouteTab();
 
@@ -354,7 +376,7 @@ class _CollectorProfileTab extends StatelessWidget {
     final userSvc = context.read<UserService>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Collector Profile')),
+      appBar: AppBar(title: Text(S.of(context, 'c_profile_title'))),
       body: StreamBuilder<UserModel?>(
         stream: userSvc.userStream,
         builder: (context, snap) {
@@ -363,20 +385,22 @@ class _CollectorProfileTab extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             children: [
               ListTile(
-                  title: const Text('Name'),
-                  subtitle: Text(u?.name ?? '-')),
+                title: Text(S.of(context, 'name')),
+                subtitle: Text(u?.name ?? '-'),
+              ),
               ListTile(
-                  title: const Text('Ward'),
-                  subtitle: Text(u?.ward ?? '-')),
+                title: Text(S.of(context, 'ward')),
+                subtitle: Text(u?.ward ?? '-'),
+              ),
               ListTile(
-                  title: const Text('Reward Points'),
-                  subtitle:
-                      Text('${u?.cleanlinessScore ?? 0}')),
+                title: Text(S.of(context, 'reward_points')),
+                subtitle: Text('${u?.cleanlinessScore ?? 0}'),
+              ),
               const SizedBox(height: 12),
               ElevatedButton.icon(
                 onPressed: () async => auth.signOut(),
                 icon: const Icon(Icons.logout),
-                label: const Text('Sign Out'),
+                label: Text(S.of(context, 'sign_out')),
               ),
             ],
           );

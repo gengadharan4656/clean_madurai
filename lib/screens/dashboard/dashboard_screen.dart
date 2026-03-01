@@ -6,6 +6,7 @@ import '../../services/user_service.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import '../../features/dustbin/dustbin_finder.dart';
+import '../../i18n/strings.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -40,10 +41,10 @@ class DashboardScreen extends StatelessWidget {
                           children: [
                             Row(
                               mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
+                              MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Hello, ${user?.name.split(' ').first ?? 'Citizen'} 👋',
+                                  '${S.of(context, 'dash_hello')}, ${user?.name.split(' ').first ?? S.of(context, 'dash_citizen')} 👋',
                                   style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
@@ -62,7 +63,7 @@ class DashboardScreen extends StatelessWidget {
                                           color: Colors.amber, size: 16),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '${user?.cleanlinessScore ?? 0} pts',
+                                        '${user?.cleanlinessScore ?? 0} ${S.of(context, 'dash_pts')}',
                                         style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.w700),
@@ -98,13 +99,13 @@ class DashboardScreen extends StatelessWidget {
                     Row(
                       children: [
                         _Stat('📋', '${user?.totalComplaints ?? 0}',
-                            'Reports', const Color(0xFFE3F2FD)),
+                            S.of(context, 'dash_reports'), const Color(0xFFE3F2FD)),
                         const SizedBox(width: 10),
                         _Stat('✅', '${user?.resolvedComplaints ?? 0}',
-                            'Resolved', const Color(0xFFE8F5E9)),
+                            S.of(context, 'dash_resolved'), const Color(0xFFE8F5E9)),
                         const SizedBox(width: 10),
                         _Stat('⭐', '${user?.cleanlinessScore ?? 0}',
-                            'Points', const Color(0xFFFFF8E1)),
+                            S.of(context, 'dash_points'), const Color(0xFFFFF8E1)),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -118,9 +119,10 @@ class DashboardScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     const FindNearbyDustbinButton(),
                     const SizedBox(height: 20),
+
                     // Recent complaints
-                    const Text('Recent Activity',
-                        style: TextStyle(
+                    Text(S.of(context, 'dash_recent_activity'),
+                        style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 10),
                     _RecentActivity(),
@@ -134,6 +136,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 }
+
 // -------------------- Degradable / Non-degradable Checker --------------------
 
 class _DegradableCheckerCard extends StatelessWidget {
@@ -165,18 +168,18 @@ class _DegradableCheckerCard extends StatelessWidget {
               child: const Icon(Icons.eco, color: Color(0xFF1B5E20)),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Degradable Checker',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    S.of(context, 'checker_title'),
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    'Type an item name → biodegradable or non-biodegradable',
-                    style: TextStyle(color: Colors.grey, fontSize: 12, height: 1.3),
+                    S.of(context, 'checker_subtitle'),
+                    style: const TextStyle(color: Colors.grey, fontSize: 12, height: 1.3),
                   ),
                 ],
               ),
@@ -210,7 +213,7 @@ class _DegradableCheckerSheetState extends State<_DegradableCheckerSheet> {
   void _check() async {
     final input = _ctrl.text.trim();
     if (input.isEmpty) {
-      _snack('Type an item name (example: banana peel, plastic bottle)');
+      _snack(S.of(context, 'checker_snack_empty'));
       return;
     }
 
@@ -263,14 +266,14 @@ class _DegradableCheckerSheetState extends State<_DegradableCheckerSheet> {
                 ),
               ),
             ),
-            const Text(
-              'Degradable Checker',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            Text(
+              S.of(context, 'checker_sheet_title'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Type the item. Example: banana peel, paper cup, plastic bottle, batteries.',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+            Text(
+              S.of(context, 'checker_sheet_desc'),
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -278,7 +281,7 @@ class _DegradableCheckerSheetState extends State<_DegradableCheckerSheet> {
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _check(),
               decoration: InputDecoration(
-                hintText: 'Enter waste item name...',
+                hintText: S.of(context, 'checker_hint'),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search),
                   onPressed: _loading ? null : _check,
@@ -300,7 +303,10 @@ class _DegradableCheckerSheetState extends State<_DegradableCheckerSheet> {
                     strokeWidth: 2,
                   ),
                 )
-                    : const Text('Check', style: TextStyle(fontWeight: FontWeight.w800)),
+                    : Text(
+                  S.of(context, 'checker_btn'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
             ),
             if (_result != null) ...[
@@ -333,6 +339,9 @@ class _ResultBox extends StatelessWidget {
         ? Colors.orange.withOpacity(0.25)
         : Colors.blueGrey.withOpacity(0.25);
 
+    final label = _maybeTranslate(context, result.label);
+    final tip = result.tip == null ? null : _maybeTranslate(context, result.tip!);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -345,26 +354,34 @@ class _ResultBox extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            result.label,
+            label,
             style: const TextStyle(fontWeight: FontWeight.w900),
           ),
           if (result.examples != null && result.examples!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              'Examples: ${result.examples!.take(5).join(', ')}',
+              '${S.of(context, 'checker_examples')}: ${result.examples!.take(5).join(', ')}',
               style: const TextStyle(color: Colors.black54, fontSize: 12),
             ),
           ],
-          if (result.tip != null) ...[
+          if (tip != null) ...[
             const SizedBox(height: 6),
             Text(
-              result.tip!,
+              tip,
               style: const TextStyle(color: Colors.black54),
             ),
           ],
         ],
       ),
     );
+  }
+
+  String _maybeTranslate(BuildContext context, String textOrKey) {
+    // If WasteClassifier returns a key like 'checker_bio_label', translate it.
+    // If it returns plain English (existing behaviour), keep it.
+    final translated = S.of(context, textOrKey);
+    if (translated == textOrKey) return textOrKey; // not found => original text
+    return translated;
   }
 }
 
@@ -384,8 +401,6 @@ class WasteResult {
     this.examples,
   });
 }
-
-
 
 class WasteClassifier {
   static bool _loaded = false;
@@ -416,8 +431,9 @@ class WasteClassifier {
     if (!_loaded) {
       return const WasteResult(
         type: WasteType.unknown,
-        label: 'Loading dataset… ⏳',
-        tip: 'Please try again in 1 second.',
+        // ✅ key-based (will translate)
+        label: 'checker_loading_label',
+        tip: 'checker_loading_tip',
         examples: ['banana peel', 'plastic bottle', 'battery', 'glass'],
       );
     }
@@ -435,8 +451,9 @@ class WasteClassifier {
 
     return const WasteResult(
       type: WasteType.unknown,
-      label: 'Unknown 🤔',
-      tip: 'Try a more specific name like “plastic bottle”, “banana peel”, “battery”, “glass jar”.',
+      // ✅ key-based (will translate)
+      label: 'checker_unknown_label',
+      tip: 'checker_unknown_tip',
       examples: ['banana peel', 'paper', 'plastic bottle', 'battery', 'glass jar'],
     );
   }
@@ -446,19 +463,21 @@ class WasteClassifier {
       case WasteType.biodegradable:
         return const WasteResult(
           type: WasteType.biodegradable,
-          label: 'Biodegradable ✅',
-          tip: 'Put in WET bin / compostable waste.',
+          // ✅ key-based (will translate)
+          label: 'checker_bio_label',
+          tip: 'checker_bio_tip',
           examples: ['banana peel', 'vegetable waste', 'food leftovers', 'tea leaves', 'paper'],
         );
       case WasteType.nonBiodegradable:
         return const WasteResult(
           type: WasteType.nonBiodegradable,
-          label: 'Non-biodegradable ✅',
-          tip: 'Put in DRY bin / recyclables. Keep plastic, glass, metal separate if possible.',
+          // ✅ key-based (will translate)
+          label: 'checker_nonbio_label',
+          tip: 'checker_nonbio_tip',
           examples: ['plastic bottle', 'chips packet', 'thermocol', 'glass jar', 'metal can'],
         );
       case WasteType.unknown:
-        return const WasteResult(type: WasteType.unknown, label: 'Unknown 🤔');
+        return const WasteResult(type: WasteType.unknown, label: 'checker_unknown_label');
     }
   }
 
@@ -468,6 +487,7 @@ class WasteClassifier {
     return cleaned.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 }
+
 class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -490,14 +510,14 @@ class _ReportCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('See something dirty?',
-                      style: TextStyle(
+                  Text(S.of(context, 'dash_see_dirty'),
+                      style: const TextStyle(
                           color: Colors.white,
                           fontSize: 17,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  const Text('Tap Report tab below to submit',
-                      style: TextStyle(
+                  Text(S.of(context, 'dash_tap_report_tab'),
+                      style: const TextStyle(
                           color: Colors.white70, fontSize: 12)),
                   const SizedBox(height: 10),
                   Container(
@@ -507,8 +527,8 @@ class _ReportCard extends StatelessWidget {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text('Report Now →',
-                        style: TextStyle(
+                    child: Text(S.of(context, 'dash_report_now'),
+                        style: const TextStyle(
                             color: Color(0xFFFF6D00),
                             fontWeight: FontWeight.w700)),
                   ),
@@ -545,8 +565,7 @@ class _Stat extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w800)),
             Text(label,
-                style:
-                    const TextStyle(fontSize: 11, color: Colors.grey)),
+                style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
         ),
       ),
@@ -569,12 +588,9 @@ class _WardCard extends StatelessWidget {
         final docs = snap.data?.docs ?? [];
         final total = docs.length;
         final resolved = docs
-            .where((d) =>
-                (d.data() as Map)['status'] == 'resolved')
+            .where((d) => (d.data() as Map)['status'] == 'resolved')
             .length;
-        final score = total == 0
-            ? 100
-            : ((resolved / total) * 100).round();
+        final score = total == 0 ? 100 : ((resolved / total) * 100).round();
 
         return Container(
           padding: const EdgeInsets.all(16),
@@ -588,8 +604,7 @@ class _WardCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(ward,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700)),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
@@ -599,11 +614,9 @@ class _WardCard extends StatelessWidget {
                           : Colors.orange.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Text('Score: $score%',
+                    child: Text('${S.of(context, 'dash_score')}: $score%',
                         style: TextStyle(
-                          color: score > 70
-                              ? Colors.green
-                              : Colors.orange,
+                          color: score > 70 ? Colors.green : Colors.orange,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         )),
@@ -625,10 +638,9 @@ class _WardCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _WS('$total', 'Total', Colors.blue),
-                  _WS('${total - resolved}', 'Pending',
-                      Colors.orange),
-                  _WS('$resolved', 'Resolved', Colors.green),
+                  _WS('$total', S.of(context, 'dash_total'), Colors.blue),
+                  _WS('${total - resolved}', S.of(context, 'dash_pending'), Colors.orange),
+                  _WS('$resolved', S.of(context, 'dash_resolved'), Colors.green),
                 ],
               ),
             ],
@@ -645,12 +657,11 @@ class _WS extends StatelessWidget {
   const _WS(this.v, this.l, this.c);
   @override
   Widget build(BuildContext context) => Column(children: [
-        Text(v,
-            style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w800, color: c)),
-        Text(l,
-            style: const TextStyle(fontSize: 11, color: Colors.grey)),
-      ]);
+    Text(v,
+        style: TextStyle(
+            fontSize: 18, fontWeight: FontWeight.w800, color: c)),
+    Text(l, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+  ]);
 }
 
 class _RecentActivity extends StatelessWidget {
@@ -673,10 +684,10 @@ class _RecentActivity extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Center(
-              child: Text('No reports yet. Tap Report to get started!',
+            child: Center(
+              child: Text(S.of(context, 'dash_no_reports_yet'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey)),
+                  style: const TextStyle(color: Colors.grey)),
             ),
           );
         }
@@ -689,7 +700,8 @@ class _RecentActivity extends StatelessWidget {
               'assigned': Colors.purple,
               'in_progress': Colors.orange,
               'resolved': Colors.green,
-            }[status] ?? Colors.grey;
+            }[status] ??
+                Colors.grey;
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(14),
@@ -715,9 +727,8 @@ class _RecentActivity extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(d['category'] ?? 'Unknown',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600)),
+                        Text(_localizeCategory(context, d['category'] ?? 'Unknown'),
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
                         Text('#${doc.id}',
                             style: const TextStyle(
                                 fontSize: 11, color: Colors.grey)),
@@ -750,11 +761,37 @@ class _RecentActivity extends StatelessWidget {
 
   String _catEmoji(String c) {
     switch (c) {
-      case 'Garbage Overflow': return '🗑️';
-      case 'Open Dumping': return '♻️';
-      case 'Sewer Blockage': return '🚰';
-      case 'Public Toilet Issue': return '🚽';
-      default: return '📋';
+      case 'Garbage Overflow':
+        return '🗑️';
+      case 'Open Dumping':
+        return '♻️';
+      case 'Sewer Blockage':
+        return '🚰';
+      case 'Public Toilet Issue':
+        return '🚽';
+      default:
+        return '📋';
+    }
+  }
+
+  String _localizeCategory(BuildContext context, String category) {
+    // Map Firestore stored English category -> localized label using your existing keys
+    switch (category) {
+      case 'Garbage Overflow':
+        return S.of(context, 'cat_garbage_overflow');
+      case 'Open Dumping':
+        return S.of(context, 'cat_open_dumping');
+      case 'Sewer Blockage':
+        return S.of(context, 'cat_sewer_blockage');
+      case 'Public Toilet Issue':
+        return S.of(context, 'cat_public_toilet');
+      case 'Littering':
+        return S.of(context, 'cat_littering');
+      case 'Other':
+        return S.of(context, 'cat_other');
+      default:
+      // if unknown, keep as-is
+        return category;
     }
   }
 }

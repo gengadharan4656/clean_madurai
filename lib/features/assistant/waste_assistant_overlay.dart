@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'waste_chatbot_engine.dart';
+import '../../i18n/strings.dart';
 
 class AssistantOverlay extends StatefulWidget {
   const AssistantOverlay({super.key});
@@ -13,9 +14,11 @@ class _AssistantOverlayState extends State<AssistantOverlay> {
   @override
   void initState() {
     super.initState();
-    // Preload once (important)
-    WasteChatbotEngine.load().then((_) {
-      if (mounted) setState(() {});
+    // Preload once (important) - after first frame so context is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WasteChatbotEngine.load().then((_) {
+        if (mounted) setState(() {});
+      });
     });
   }
 
@@ -66,8 +69,9 @@ class _ChatPanel extends StatefulWidget {
 
 class _ChatPanelState extends State<_ChatPanel> {
   final _ctrl = TextEditingController();
-  final List<_Msg> _msgs = [
-    _Msg.bot("Hi 👋 I’m Clean Madurai Assistant.\nPick a question below or type your question.")
+
+  late final List<_Msg> _msgs = [
+    _Msg.bot(S.of(context, 'assistant_greeting'))
   ];
 
   @override
@@ -84,9 +88,16 @@ class _ChatPanelState extends State<_ChatPanel> {
       _msgs.add(_Msg.user(q));
     });
 
+    final lang = Localizations.localeOf(context).languageCode; // 'en' or 'ta'
+
+    // ✅ No lang param here
     final match = WasteChatbotEngine.bestMatch(q);
-    final reply = match?.answer ??
-        "I’m not sure yet 😅\nTry a clearer question like “What goes in wet bin?” or “How to dispose batteries?”";
+
+    final reply = match != null
+        ? match.answerForLang(lang)
+        : (lang == 'ta'
+        ? S.of(context, 'assistant_fallback_ta')
+        : S.of(context, 'assistant_fallback'));
 
     setState(() {
       _msgs.add(_Msg.bot(reply));
@@ -97,6 +108,9 @@ class _ChatPanelState extends State<_ChatPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = Localizations.localeOf(context).languageCode;
+
+    // ✅ No lang param here
     final quick = WasteChatbotEngine.quickQuestions(limit: 12);
 
     return Material(
@@ -121,10 +135,13 @@ class _ChatPanelState extends State<_ChatPanel> {
                 children: [
                   const Icon(Icons.support_agent, color: Colors.white),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Clean Madurai Assistant',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+                      S.of(context, 'assistant_title'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -142,11 +159,12 @@ class _ChatPanelState extends State<_ChatPanel> {
                 padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
                 child: Row(
                   children: quick.map((qa) {
+                    final qText = qa.questionForLang(lang); // ✅ localized
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ActionChip(
-                        label: Text(qa.question, overflow: TextOverflow.ellipsis),
-                        onPressed: () => _ask(qa.question),
+                        label: Text(qText, overflow: TextOverflow.ellipsis),
+                        onPressed: () => _ask(qText),
                       ),
                     );
                   }).toList(),
@@ -174,15 +192,15 @@ class _ChatPanelState extends State<_ChatPanel> {
                       controller: _ctrl,
                       textInputAction: TextInputAction.send,
                       onSubmitted: _ask,
-                      decoration: const InputDecoration(
-                        hintText: 'Ask about recycling, composting, bins…',
+                      decoration: InputDecoration(
+                        hintText: S.of(context, 'assistant_hint'),
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
                     onPressed: () => _ask(_ctrl.text),
-                    child: const Text('Send'),
+                    child: Text(S.of(context, 'assistant_send')),
                   ),
                 ],
               ),
@@ -208,7 +226,8 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final align = msg.fromUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+    final align =
+    msg.fromUser ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final bg = msg.fromUser ? const Color(0xFF1B5E20) : Colors.grey.shade200;
     final fg = msg.fromUser ? Colors.white : Colors.black87;
 

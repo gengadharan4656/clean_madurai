@@ -13,6 +13,7 @@ import 'screens/home/home_screen.dart';
 import 'screens/collector/collector_home_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'features/assistant/waste_assistant_overlay.dart';
+import 'i18n/app_lang.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,67 +59,75 @@ class CleanMaduraiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AppLang()), // ✅ put AppLang first
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => ComplaintService()),
         ChangeNotifierProvider(create: (_) => UserService()),
       ],
-      child: MaterialApp(
-        title: 'Clean Madurai',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1B5E20),
-            primary: const Color(0xFF1B5E20),
-          ),
-          scaffoldBackgroundColor: const Color(0xFFF5F7F0),
-          fontFamily: 'Roboto',
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF1B5E20),
-            foregroundColor: Colors.white,
-            elevation: 0,
-            centerTitle: true,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1B5E20),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+      child: Builder(
+        builder: (context) {
+          // ✅ NOW this context is inside MultiProvider
+          final locale = context.watch<AppLang>().locale;
+
+          return MaterialApp(
+            locale: locale, // ✅ works
+            title: 'Clean Madurai',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              useMaterial3: true,
+              colorScheme: ColorScheme.fromSeed(
+                seedColor: const Color(0xFF1B5E20),
+                primary: const Color(0xFF1B5E20),
+              ),
+              scaffoldBackgroundColor: const Color(0xFFF5F7F0),
+              fontFamily: 'Roboto',
+              appBarTheme: const AppBarTheme(
+                backgroundColor: Color(0xFF1B5E20),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                centerTitle: true,
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B5E20),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              inputDecorationTheme: InputDecorationTheme(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFF1B5E20), width: 2),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
             ),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: Color(0xFF1B5E20), width: 2),
-            ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          ),
-        ),
-        builder: (context, child) {
-          return Stack(
-            children: [
-              child ?? const SizedBox.shrink(),
-              const AssistantOverlay(),
-            ],
+            builder: (context, child) {
+              return Stack(
+                children: [
+                  child ?? const SizedBox.shrink(),
+                  const AssistantOverlay(),
+                ],
+              );
+            },
+            home: firebaseReady
+                ? const AuthWrapper()
+                : FirebaseErrorScreen(error: firebaseInitError),
           );
         },
-        home: firebaseReady
-            ? const AuthWrapper()
-            : FirebaseErrorScreen(error: firebaseInitError),
       ),
     );
   }
